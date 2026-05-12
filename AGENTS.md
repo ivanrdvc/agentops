@@ -1,5 +1,7 @@
 # agentops
 
+"TODO" means the root `TODO.md` — read it, append entries there when relevant.
+
 ## Layout
 
 - `src/routes/` — file-based routes. `-name.tsx` files are route-scoped and ignored by the router. Co-locate aggressively; lift to `src/lib/` or `src/components/` only when a 2nd route consumes it.
