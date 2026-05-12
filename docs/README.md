@@ -1,0 +1,39 @@
+# docs
+
+In-repo engineering docs for agentops.
+
+## Map
+
+- **`explanation/`** — the "why" of subsystems. Mental models, architecture,
+  trade-offs. The highest-leverage section; longer-form prose.
+- **`reference/`** — flat lookup tables. Attribute catalogs, error codes, etc.
+  Each file is one self-contained table.
+- **`plans/`** — forward-looking design proposals for unbuilt features.
+  Distinct from `explanation/` (which is current-state) and from ADRs (which
+  record decided choices). Each plan links back to the relevant subsystem.
+
+Guides (`how to do X`) and decisions (ADRs) will get their own folders when
+the first one is written; premature to scaffold them now.
+
+## Where does my doc go?
+
+```
+1. Steps to do a task ("how do I X?")     → guides/        (create the folder)
+2. A flat lookup table or registry        → reference/
+3. The "why" of a subsystem               → explanation/
+4. A proposal for an unbuilt feature      → plans/
+
+Test: step 1, step 2, step 3                  → guide.
+      flat table, rows are independent         → reference.
+      prose explaining a design                → explanation.
+      "we should build X and here's how"       → plan.
+```
+
+## Conventions
+
+- Markdown only. No build step.
+- Frontmatter on every file: `title`, `type`, `summary`, `status`, `owner`,
+  `audience`, `last-reviewed`, `tags`. Keeps `grep '^summary:' docs/**/*.md`
+  useful as a digest.
+- Filenames are topical and lowercase-kebab. No date prefixes.
+- Cross-link liberally. Stale links are bugs.

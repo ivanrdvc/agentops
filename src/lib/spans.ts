@@ -1,8 +1,11 @@
+import type { JsonValue } from './json'
+
 export type SpanKind = 'server' | 'client' | 'internal' | 'producer' | 'consumer'
 export type Operation = 'http' | 'chat' | 'tool' | 'invoke_agent'
 
 export interface Span {
   id: string
+  traceId: string
   parentId: string | null
   service: string
   kind: SpanKind
@@ -11,11 +14,53 @@ export interface Span {
   startMs: number
   endMs: number
   tokens?: number
+  inputTokens?: number
+  outputTokens?: number
   costUsd?: number
   agentName?: string
   toolName?: string
   inputParams?: string
   model?: string
+
+  // Present on chat spans — what the LLM was sent and what it replied.
+  llmInput?: JsonValue
+  llmOutput?: JsonValue
+
+  // Present on execute_tool spans — pairing key and the tool's return value.
+  toolCallId?: string
+  toolResult?: JsonValue
+
+  // Session correlation. `attribute` = lifted from a real semconv key
+  // (session.id / gen_ai.conversation.id / langfuse.session.id / ...).
+  // `agent-instance` = fallback derived from the agent-instance hex in
+  // `invoke_agent <Name>(<hex>)` span names when no attribute is present.
+  // UI discloses the source so heuristic-derived sessions don't masquerade
+  // as real ones.
+  sessionId?: string
+  sessionSource?: 'attribute' | 'agent-instance'
+}
+
+// Stamp every span in a trace with the same sessionId. A real `attribute`
+// source wins over the `agent-instance` heuristic when both appear in the
+// same trace — so spans that didn't carry the attribute themselves get
+// stamped with it rather than with a fallback hex.
+export function propagateSessionInTrace(spans: Span[]): void {
+  let attrId: string | undefined
+  let heuristicId: string | undefined
+  for (const s of spans) {
+    if (!s.sessionId) continue
+    if (s.sessionSource === 'attribute' && !attrId) attrId = s.sessionId
+    else if (s.sessionSource === 'agent-instance' && !heuristicId) heuristicId = s.sessionId
+  }
+  const id = attrId ?? heuristicId
+  if (!id) return
+  const source: 'attribute' | 'agent-instance' = attrId ? 'attribute' : 'agent-instance'
+  for (const s of spans) {
+    if (!s.sessionId) {
+      s.sessionId = id
+      s.sessionSource = source
+    }
+  }
 }
 
 export const KIND_LETTER: Record<SpanKind, string> = {
@@ -26,7 +71,6 @@ export const KIND_LETTER: Record<SpanKind, string> = {
   consumer: 'u',
 }
 
-// Subtree aggregate (this span + all descendants).
 export function subtreeAggregate(spans: Span[], rootId: string): { tokens: number; costUsd: number } {
   const byParent = new Map<string | null, Span[]>()
   for (const s of spans) {
@@ -51,10 +95,14 @@ export function subtreeAggregate(spans: Span[], rootId: string): { tokens: numbe
 
 export function findOrchestratorId(spans: Span[]): string | null {
   const byId = new Map(spans.map((s) => [s.id, s]))
+  const memo = new Map<string, number>()
   const depth = (id: string): number => {
+    const cached = memo.get(id)
+    if (cached !== undefined) return cached
     const s = byId.get(id)
-    if (!s || s.parentId === null) return 0
-    return 1 + depth(s.parentId)
+    const d = !s || s.parentId === null ? 0 : 1 + depth(s.parentId)
+    memo.set(id, d)
+    return d
   }
   const agents = spans.filter((s) => s.operation === 'invoke_agent')
   agents.sort((a, b) => depth(a.id) - depth(b.id))

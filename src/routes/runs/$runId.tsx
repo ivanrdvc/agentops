@@ -2,6 +2,7 @@ import { ChevronLeftIcon } from '@heroicons/react/16/solid'
 import { createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useState } from 'react'
+import { ConversationView } from '#/components/conversation-view'
 import { Link } from '#/components/ui/link'
 import type { Span } from '#/lib/spans'
 import { getTrace } from '#/lib/telemetry'
@@ -20,7 +21,7 @@ export const Route = createFileRoute('/runs/$runId')({
   component: RunDetail,
 })
 
-type ViewMode = 'spans' | 'turns'
+type ViewMode = 'spans' | 'turns' | 'conversation'
 
 function RunDetail() {
   const { runId } = Route.useParams()
@@ -74,14 +75,12 @@ function RunDetail() {
       <div className="flex min-h-0 flex-1 border-t border-zinc-950/10 dark:border-white/10">
         <section className="flex min-w-0 flex-1 flex-col border-r border-zinc-950/10 dark:border-white/10">
           <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-            {view === 'spans' ? 'Operation Name' : 'Turns'}
+            {view === 'spans' ? 'Operation Name' : view === 'turns' ? 'Turns' : 'Conversation'}
           </div>
           <div className="flex-1 overflow-auto">
-            {view === 'spans' ? (
-              <TreeView spans={spans} selectedId={selectedId} onSelect={setSelectedId} />
-            ) : (
-              <TurnsView spans={spans} selectedId={selectedId} onSelect={setSelectedId} />
-            )}
+            {view === 'spans' && <TreeView spans={spans} selectedId={selectedId} onSelect={setSelectedId} />}
+            {view === 'turns' && <TurnsView spans={spans} selectedId={selectedId} onSelect={setSelectedId} />}
+            {view === 'conversation' && <ConversationView spans={spans} onSelect={setSelectedId} />}
           </div>
         </section>
 
@@ -100,6 +99,7 @@ function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (v: ViewMo
   const opts: { v: ViewMode; label: string }[] = [
     { v: 'spans', label: 'Spans' },
     { v: 'turns', label: 'Turns' },
+    { v: 'conversation', label: 'Conversation' },
   ]
   return (
     <div className="inline-flex rounded-md border border-zinc-950/10 p-0.5 text-xs dark:border-white/10">

@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SessionsIndexRouteImport } from './routes/sessions/index'
 import { Route as RunsIndexRouteImport } from './routes/runs/index'
+import { Route as SessionsSessionIdRouteImport } from './routes/sessions/$sessionId'
 import { Route as RunsRunIdRouteImport } from './routes/runs/$runId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -18,9 +20,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SessionsIndexRoute = SessionsIndexRouteImport.update({
+  id: '/sessions/',
+  path: '/sessions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RunsIndexRoute = RunsIndexRouteImport.update({
   id: '/runs/',
   path: '/runs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionsSessionIdRoute = SessionsSessionIdRouteImport.update({
+  id: '/sessions/$sessionId',
+  path: '/sessions/$sessionId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RunsRunIdRoute = RunsRunIdRouteImport.update({
@@ -32,31 +44,50 @@ const RunsRunIdRoute = RunsRunIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/runs/': typeof RunsIndexRoute
+  '/sessions/': typeof SessionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/runs': typeof RunsIndexRoute
+  '/sessions': typeof SessionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/runs/$runId': typeof RunsRunIdRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/runs/': typeof RunsIndexRoute
+  '/sessions/': typeof SessionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/runs/$runId' | '/runs/'
+  fullPaths:
+    | '/'
+    | '/runs/$runId'
+    | '/sessions/$sessionId'
+    | '/runs/'
+    | '/sessions/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/runs/$runId' | '/runs'
-  id: '__root__' | '/' | '/runs/$runId' | '/runs/'
+  to: '/' | '/runs/$runId' | '/sessions/$sessionId' | '/runs' | '/sessions'
+  id:
+    | '__root__'
+    | '/'
+    | '/runs/$runId'
+    | '/sessions/$sessionId'
+    | '/runs/'
+    | '/sessions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   RunsRunIdRoute: typeof RunsRunIdRoute
+  SessionsSessionIdRoute: typeof SessionsSessionIdRoute
   RunsIndexRoute: typeof RunsIndexRoute
+  SessionsIndexRoute: typeof SessionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -68,11 +99,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sessions/': {
+      id: '/sessions/'
+      path: '/sessions'
+      fullPath: '/sessions/'
+      preLoaderRoute: typeof SessionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/runs/': {
       id: '/runs/'
       path: '/runs'
       fullPath: '/runs/'
       preLoaderRoute: typeof RunsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessions/$sessionId': {
+      id: '/sessions/$sessionId'
+      path: '/sessions/$sessionId'
+      fullPath: '/sessions/$sessionId'
+      preLoaderRoute: typeof SessionsSessionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/runs/$runId': {
@@ -88,7 +133,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   RunsRunIdRoute: RunsRunIdRoute,
+  SessionsSessionIdRoute: SessionsSessionIdRoute,
   RunsIndexRoute: RunsIndexRoute,
+  SessionsIndexRoute: SessionsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

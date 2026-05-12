@@ -6,6 +6,7 @@ import type { Span } from '#/lib/spans'
 export const RUN_SPANS: Span[] = [
   {
     id: 's1',
+    traceId: 'demo-trace',
     parentId: null,
     service: 'proverbs-agent',
     kind: 'server',
@@ -17,6 +18,7 @@ export const RUN_SPANS: Span[] = [
 
   {
     id: 's2',
+    traceId: 'demo-trace',
     parentId: 's1',
     service: 'proverbs-agent',
     kind: 'internal',
@@ -30,6 +32,7 @@ export const RUN_SPANS: Span[] = [
   // Turn 1 LLM call
   {
     id: 's3',
+    traceId: 'demo-trace',
     parentId: 's2',
     service: 'proverbs-agent',
     kind: 'client',
@@ -43,6 +46,7 @@ export const RUN_SPANS: Span[] = [
   },
   {
     id: 's4',
+    traceId: 'demo-trace',
     parentId: 's3',
     service: 'proverbs-agent',
     kind: 'client',
@@ -55,6 +59,7 @@ export const RUN_SPANS: Span[] = [
   // Turn 1 action — execute_tool wrapping a sub-agent
   {
     id: 's5',
+    traceId: 'demo-trace',
     parentId: 's2',
     service: 'proverbs-agent',
     kind: 'internal',
@@ -67,6 +72,7 @@ export const RUN_SPANS: Span[] = [
   },
   {
     id: 's6',
+    traceId: 'demo-trace',
     parentId: 's5',
     service: 'proverbs-agent',
     kind: 'internal',
@@ -78,6 +84,7 @@ export const RUN_SPANS: Span[] = [
   },
   {
     id: 's7',
+    traceId: 'demo-trace',
     parentId: 's6',
     service: 'proverbs-agent',
     kind: 'client',
@@ -91,6 +98,7 @@ export const RUN_SPANS: Span[] = [
   },
   {
     id: 's8',
+    traceId: 'demo-trace',
     parentId: 's7',
     service: 'proverbs-agent',
     kind: 'client',
@@ -103,6 +111,7 @@ export const RUN_SPANS: Span[] = [
   // Turn 2 LLM call (final answer)
   {
     id: 's9',
+    traceId: 'demo-trace',
     parentId: 's2',
     service: 'proverbs-agent',
     kind: 'client',
@@ -116,6 +125,7 @@ export const RUN_SPANS: Span[] = [
   },
   {
     id: 's10',
+    traceId: 'demo-trace',
     parentId: 's9',
     service: 'proverbs-agent',
     kind: 'client',

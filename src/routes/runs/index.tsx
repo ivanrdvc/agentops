@@ -32,16 +32,21 @@ interface RunRow {
   status: RunStatus
   startedAt: number
   costUsd: number
+  serviceName?: string
+  sessionId?: string
 }
 
 function toRow(t: TraceSummary): RunRow {
-  return {
+  const row: RunRow = {
     id: t.id,
     agent: t.agent ?? '—',
     status: t.hasError ? 'error' : 'ok',
     startedAt: t.startedAtMs,
     costUsd: t.totalCostUsd ?? 0,
   }
+  if (t.serviceName) row.serviceName = t.serviceName
+  if (t.sessionId) row.sessionId = t.sessionId
+  return row
 }
 
 const PAGE_SIZE = 10
@@ -172,10 +177,25 @@ function RunsList() {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <span className="font-medium text-zinc-950 dark:text-white">{r.agent}</span>
-                  <span className="ml-2 font-mono text-xs text-zinc-500 dark:text-zinc-400">
-                    {usingReal ? truncateId(r.id) : `#${r.id}`}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-zinc-950 dark:text-white">{r.agent}</span>
+                    {r.serviceName && (
+                      <span className="rounded bg-zinc-950/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600 dark:bg-white/5 dark:text-zinc-400">
+                        {r.serviceName}
+                      </span>
+                    )}
+                    {r.sessionId && (
+                      <span
+                        title={`session ${r.sessionId}`}
+                        className="rounded bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[10px] text-indigo-700 dark:text-indigo-300"
+                      >
+                        🧵 {truncateId(r.sessionId)}
+                      </span>
+                    )}
+                    <span className="ml-auto font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                      {usingReal ? truncateId(r.id) : `#${r.id}`}
+                    </span>
+                  </div>
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-zinc-500 dark:text-zinc-400">
                   {formatCost(r.costUsd)}
@@ -291,6 +311,7 @@ function formatAgo(startedAtMs: number): string {
 }
 
 function formatCost(usd: number): string {
+  if (!usd) return '—'
   if (usd < 0.0001) return '<$0.0001'
   return `$${usd.toFixed(4)}`
 }

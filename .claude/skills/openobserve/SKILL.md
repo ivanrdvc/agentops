@@ -113,7 +113,7 @@ The root is the span whose `reference_parent_span_id` is empty/null. Build the t
 
 ## AI/LLM attribute reference
 
-OpenObserve flattens dotted OTel attributes into underscore-separated keys, so `gen_ai.usage.input_tokens` becomes `gen_ai_usage_input_tokens`. The full catalog — including OpenAI-specific, Logfire `llm_*`, CopilotKit `ag_ui_*`, span structural fields, and the agent-as-tool detection rule — lives in the project's [`docs/ai-attributes.md`](../../../docs/ai-attributes.md). Read that file when you need to interpret a span's payload, especially `llm_input` (the full chat history) and `llm_output` (the assistant reply with embedded tool calls).
+OpenObserve flattens dotted OTel attributes into underscore-separated keys, so `gen_ai.usage.input_tokens` becomes `gen_ai_usage_input_tokens`. The full catalog — including OpenAI-specific, Logfire `llm_*`, CopilotKit `ag_ui_*`, span structural fields, and the agent-as-tool detection rule — lives in the project's [`docs/reference/ai-attributes.md`](../../../docs/reference/ai-attributes.md). Read that file when you need to interpret a span's payload, especially `llm_input` (the full chat history) and `llm_output` (the assistant reply with embedded tool calls).
 
 ## Output advice
 

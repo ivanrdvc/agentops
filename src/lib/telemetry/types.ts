@@ -1,8 +1,6 @@
 import type { Span } from '#/lib/spans'
 
-export type TraceFetch =
-  | { kind: 'found'; spans: Span[]; truncated?: boolean }
-  | { kind: 'not_found' }
+export type TraceFetch = { kind: 'found'; spans: Span[]; truncated?: boolean } | { kind: 'not_found' }
 
 export interface GetTraceOpts {
   fromUs?: number
@@ -21,10 +19,40 @@ export interface TraceSummary {
   durationMs: number
   spanCount: number
   agent?: string
+  // Lifted from span attrs — the user-emitted run context that lets the trace
+  // list show what a run *is*, not just "which agent name appeared first".
+  serviceName?: string // OTel `service.name` — the app that emitted the run
+  sessionId?: string // AG-UI `ag_ui_thread_id` (and later: `session.id`, `langfuse.trace.session.id`)
   totalTokens?: number
   totalCostUsd?: number
   hasError?: boolean
 }
+
+// A session is the spine of a multi-turn conversation per
+// `docs/plans/sessions.md` — many runs share one sessionId. `source`
+// discloses whether the id came from a real attribute or the agent-instance
+// hex heuristic (used when no attribute is present).
+export interface SessionSummary {
+  sessionId: string
+  source: 'attribute' | 'agent-instance'
+  startedAtMs: number
+  lastSeenMs: number
+  traceCount: number
+  agents: string[]
+  totalTokens?: number
+  totalCostUsd?: number
+  hasError?: boolean
+}
+
+export interface ListSessionsOpts {
+  fromUs?: number
+  toUs?: number
+  limit?: number
+}
+
+export type SessionFetch =
+  | { kind: 'found'; sessionId: string; source: 'attribute' | 'agent-instance'; traceIds: string[]; spans: Span[] }
+  | { kind: 'not_found' }
 
 export interface TelemetryProvider {
   name: string
@@ -38,6 +66,13 @@ export interface TelemetryProvider {
   // Aggregated summary of recent traces. Optional: a provider that only
   // supports point-lookups returns undefined here and the index page skips it.
   listTraces?(opts?: ListTracesOpts): Promise<TraceSummary[]>
+
+  // Sessions: groups of runs sharing a sessionId (see SessionSummary).
+  // Optional — providers without grouping capability omit these.
+  // `truncated` = the underlying scan hit its row cap, so older sessions
+  // may be missing from the result.
+  listSessions?(opts?: ListSessionsOpts): Promise<{ sessions: SessionSummary[]; truncated: boolean }>
+  getSession?(sessionId: string, opts?: GetTraceOpts): Promise<SessionFetch>
 
   // getLogs?(filter, opts?): Promise<LogEntry[]>
   // getMetric?(name, range): Promise<MetricSeries>

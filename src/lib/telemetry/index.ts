@@ -1,8 +1,23 @@
 import type { Span } from '#/lib/spans'
 import { createOpenObserveProvider } from './openobserve'
-import type { ListTracesOpts, TelemetryProvider, TraceSummary } from './types'
+import type {
+  ListSessionsOpts,
+  ListTracesOpts,
+  SessionSummary,
+  TelemetryProvider,
+  TraceSummary,
+} from './types'
 
-export type { TelemetryProvider, TraceFetch, GetTraceOpts, TraceSummary, ListTracesOpts } from './types'
+export type {
+  TelemetryProvider,
+  TraceFetch,
+  GetTraceOpts,
+  TraceSummary,
+  ListTracesOpts,
+  SessionSummary,
+  ListSessionsOpts,
+  SessionFetch,
+} from './types'
 
 // One active provider at a time. Defaults to local OpenObserve with the
 // docker image's admin creds so a fresh setup works zero-config. Override
@@ -53,5 +68,39 @@ export async function listRecentTraces(opts?: ListTracesOpts): Promise<{
   const p = getActiveProvider()
   if (!p.listTraces) return null
   return { traces: await p.listTraces(opts), provider: p.name, fingerprint: p.fingerprint }
+}
+
+export async function listRecentSessions(opts?: ListSessionsOpts): Promise<{
+  sessions: SessionSummary[]
+  truncated: boolean
+  provider: string
+  fingerprint: string
+} | null> {
+  const p = getActiveProvider()
+  if (!p.listSessions) return null
+  const r = await p.listSessions(opts)
+  return { sessions: r.sessions, truncated: r.truncated, provider: p.name, fingerprint: p.fingerprint }
+}
+
+export async function getSession(sessionId: string): Promise<{
+  sessionId: string
+  source: 'attribute' | 'agent-instance'
+  spans: Span[]
+  traceIds: string[]
+  provider: string
+  fingerprint: string
+} | null> {
+  const p = getActiveProvider()
+  if (!p.getSession) return null
+  const r = await p.getSession(sessionId)
+  if (r.kind !== 'found') return null
+  return {
+    sessionId: r.sessionId,
+    source: r.source,
+    spans: r.spans,
+    traceIds: r.traceIds,
+    provider: p.name,
+    fingerprint: p.fingerprint,
+  }
 }
 

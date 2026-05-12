@@ -7,7 +7,14 @@ import {
   SunIcon,
   UserCircleIcon,
 } from '@heroicons/react/16/solid'
-import { BeakerIcon, BoltIcon, Cog6ToothIcon, CubeTransparentIcon, PlayCircleIcon } from '@heroicons/react/20/solid'
+import {
+  BeakerIcon,
+  BoltIcon,
+  ChatBubbleLeftRightIcon,
+  Cog6ToothIcon,
+  CubeTransparentIcon,
+  PlayCircleIcon,
+} from '@heroicons/react/20/solid'
 import { useRouterState } from '@tanstack/react-router'
 import { Logo } from '#/components/logo'
 import { Avatar } from '#/components/ui/avatar'
@@ -120,6 +127,10 @@ export function ApplicationLayout({ children }: { children: React.ReactNode }) {
               <SidebarItem href="/agents" current={is('/agents')}>
                 <BoltIcon />
                 <SidebarLabel>Agents</SidebarLabel>
+              </SidebarItem>
+              <SidebarItem href="/sessions" current={is('/sessions')}>
+                <ChatBubbleLeftRightIcon />
+                <SidebarLabel>Sessions</SidebarLabel>
               </SidebarItem>
               <SidebarItem href="/runs" current={is('/runs')}>
                 <PlayCircleIcon />

@@ -1,3 +1,16 @@
+---
+title: AI / LLM trace attributes
+type: reference
+summary: OTel GenAI semconv plus the Logfire / OpenInference / vendor
+         extensions seen in real traces. Lookup table for what each
+         attribute key means when reading a span.
+status: stable
+owner: "@ivan"
+audience: anyone reading a span payload
+last-reviewed: 2026-05-12
+tags: [otel, gen-ai, ingest, attributes]
+---
+
 # AI / LLM trace attributes
 
 OTel GenAI semconv plus the Logfire / OpenInference / vendor extensions seen in real instrumented agent traces. Use this as the lookup for what each key means when reading a span.
