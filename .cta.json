@@ -16,10 +16,5 @@
   "routerOnly": false,
   "version": 1,
   "framework": "react",
-  "chosenAddOns": [
-    "biome",
-    "nitro",
-    "tanstack-query",
-    "drizzle"
-  ]
+  "chosenAddOns": ["biome", "nitro", "tanstack-query", "drizzle"]
 }

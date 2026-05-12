@@ -3,7 +3,8 @@
 import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 import { LayoutGroup, motion } from 'motion/react'
-import React, { forwardRef, useId } from 'react'
+import type React from 'react'
+import { forwardRef, useId } from 'react'
 import { TouchTarget } from './button'
 import { Link } from './link'
 
@@ -17,7 +18,7 @@ export function SidebarHeader({ className, ...props }: React.ComponentPropsWitho
       {...props}
       className={clsx(
         className,
-        'flex flex-col border-b border-zinc-950/5 p-4 dark:border-white/5 [&>[data-slot=section]+[data-slot=section]]:mt-2.5'
+        'flex flex-col border-b border-zinc-950/5 p-4 dark:border-white/5 [&>[data-slot=section]+[data-slot=section]]:mt-2.5',
       )}
     />
   )
@@ -29,7 +30,7 @@ export function SidebarBody({ className, ...props }: React.ComponentPropsWithout
       {...props}
       className={clsx(
         className,
-        'flex flex-1 flex-col overflow-y-auto p-4 [&>[data-slot=section]+[data-slot=section]]:mt-8'
+        'flex flex-1 flex-col overflow-y-auto p-4 [&>[data-slot=section]+[data-slot=section]]:mt-8',
       )}
     />
   )
@@ -41,14 +42,14 @@ export function SidebarFooter({ className, ...props }: React.ComponentPropsWitho
       {...props}
       className={clsx(
         className,
-        'flex flex-col border-t border-zinc-950/5 p-4 dark:border-white/5 [&>[data-slot=section]+[data-slot=section]]:mt-2.5'
+        'flex flex-col border-t border-zinc-950/5 p-4 dark:border-white/5 [&>[data-slot=section]+[data-slot=section]]:mt-2.5',
       )}
     />
   )
 }
 
 export function SidebarSection({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
-  let id = useId()
+  const id = useId()
 
   return (
     <LayoutGroup id={id}>
@@ -81,9 +82,9 @@ export const SidebarItem = forwardRef(function SidebarItem(
     | ({ href?: never } & Omit<Headless.ButtonProps, 'as' | 'className'>)
     | ({ href: string } & Omit<Headless.ButtonProps<typeof Link>, 'as' | 'className'>)
   ),
-  ref: React.ForwardedRef<HTMLAnchorElement | HTMLButtonElement>
+  ref: React.ForwardedRef<HTMLAnchorElement | HTMLButtonElement>,
 ) {
-  let classes = clsx(
+  const classes = clsx(
     // Base
     'flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-base/6 font-medium text-zinc-950 sm:py-2 sm:text-sm/5',
     // Leading icon/icon-only
@@ -102,7 +103,7 @@ export const SidebarItem = forwardRef(function SidebarItem(
     'dark:text-white dark:*:data-[slot=icon]:fill-zinc-400',
     'dark:data-hover:bg-white/5 dark:data-hover:*:data-[slot=icon]:fill-white',
     'dark:data-active:bg-white/5 dark:data-active:*:data-[slot=icon]:fill-white',
-    'dark:data-current:*:data-[slot=icon]:fill-white'
+    'dark:data-current:*:data-[slot=icon]:fill-white',
   )
 
   return (

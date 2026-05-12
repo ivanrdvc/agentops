@@ -1,6 +1,7 @@
 import * as Headless from '@headlessui/react'
 import { Link as RouterLink } from '@tanstack/react-router'
-import React, { forwardRef } from 'react'
+import type React from 'react'
+import { forwardRef } from 'react'
 
 export const Link = forwardRef(function Link(
   { href, ...props }: { href: string } & Omit<React.ComponentPropsWithoutRef<'a'>, 'href'>,

@@ -24,7 +24,7 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 140,
+    "lineWidth": 120,
     "lineEnding": "lf"
   },
   "javascript": {
@@ -48,5 +48,20 @@
     "rules": {
       "recommended": true
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/components/ui/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noSvgWithoutTitle": "off"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "off"
+          }
+        }
+      }
+    }
+  ]
 }

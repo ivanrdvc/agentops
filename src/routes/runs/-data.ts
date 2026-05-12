@@ -1,0 +1,127 @@
+import type { Span } from '#/lib/spans'
+
+// Mirrors a real OpenObserve trace (trace_id 42427c58…): a ProverbsAgent
+// orchestrator with 2 turns; turn 1 invokes a sub-agent (Explorer) via the
+// `execute_tool explore` wrapper pattern. Stand-in until real ingest lands.
+export const RUN_SPANS: Span[] = [
+  {
+    id: 's1',
+    parentId: null,
+    service: 'proverbs-agent',
+    kind: 'server',
+    operation: 'http',
+    name: 'POST /v1/responses/',
+    startMs: 0,
+    endMs: 9400,
+  },
+
+  {
+    id: 's2',
+    parentId: 's1',
+    service: 'proverbs-agent',
+    kind: 'internal',
+    operation: 'invoke_agent',
+    name: 'invoke_agent ProverbsAgent(fc172253537e45be99b16570fae78e87)',
+    startMs: 10,
+    endMs: 9390,
+    agentName: 'ProverbsAgent',
+  },
+
+  // Turn 1 LLM call
+  {
+    id: 's3',
+    parentId: 's2',
+    service: 'proverbs-agent',
+    kind: 'client',
+    operation: 'chat',
+    name: 'chat gpt-4o-mini',
+    startMs: 50,
+    endMs: 1170,
+    tokens: 1668,
+    costUsd: 0.0003438,
+    model: 'gpt-4o-mini',
+  },
+  {
+    id: 's4',
+    parentId: 's3',
+    service: 'proverbs-agent',
+    kind: 'client',
+    operation: 'http',
+    name: 'POST',
+    startMs: 100,
+    endMs: 1140,
+  },
+
+  // Turn 1 action — execute_tool wrapping a sub-agent
+  {
+    id: 's5',
+    parentId: 's2',
+    service: 'proverbs-agent',
+    kind: 'internal',
+    operation: 'tool',
+    name: 'execute_tool explore',
+    startMs: 1200,
+    endMs: 5710,
+    toolName: 'explore',
+    inputParams: '{"query":"Roman Empire"}',
+  },
+  {
+    id: 's6',
+    parentId: 's5',
+    service: 'proverbs-agent',
+    kind: 'internal',
+    operation: 'invoke_agent',
+    name: 'invoke_agent Explorer(a9bc23a07895481b8abbda828552b51f)',
+    startMs: 1220,
+    endMs: 5700,
+    agentName: 'Explorer',
+  },
+  {
+    id: 's7',
+    parentId: 's6',
+    service: 'proverbs-agent',
+    kind: 'client',
+    operation: 'chat',
+    name: 'chat gpt-4o-mini',
+    startMs: 1240,
+    endMs: 5680,
+    tokens: 700,
+    costUsd: 0.00015,
+    model: 'gpt-4o-mini',
+  },
+  {
+    id: 's8',
+    parentId: 's7',
+    service: 'proverbs-agent',
+    kind: 'client',
+    operation: 'http',
+    name: 'POST',
+    startMs: 1280,
+    endMs: 5620,
+  },
+
+  // Turn 2 LLM call (final answer)
+  {
+    id: 's9',
+    parentId: 's2',
+    service: 'proverbs-agent',
+    kind: 'client',
+    operation: 'chat',
+    name: 'chat gpt-4o-mini',
+    startMs: 5750,
+    endMs: 9380,
+    tokens: 2200,
+    costUsd: 0.00045,
+    model: 'gpt-4o-mini',
+  },
+  {
+    id: 's10',
+    parentId: 's9',
+    service: 'proverbs-agent',
+    kind: 'client',
+    operation: 'http',
+    name: 'POST',
+    startMs: 5800,
+    endMs: 9350,
+  },
+]

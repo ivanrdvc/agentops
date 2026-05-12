@@ -1,13 +1,7 @@
-import {
-  HeadContent,
-  Scripts,
-  createRootRouteWithContext,
-} from '@tanstack/react-router'
-import { ApplicationLayout } from '../components/application-layout'
-
-import appCss from '../styles.css?url'
-
 import type { QueryClient } from '@tanstack/react-query'
+import { createRootRouteWithContext, HeadContent, Scripts } from '@tanstack/react-router'
+import { ApplicationLayout } from '../components/application-layout'
+import appCss from '../styles.css?url'
 
 interface MyRouterContext {
   queryClient: QueryClient
@@ -31,16 +25,17 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
     links: [
       {
+        rel: 'icon',
+        type: 'image/svg+xml',
+        href: '/favicon.svg',
+      },
+      {
         rel: 'stylesheet',
         href: appCss,
       },
       {
-        rel: 'preconnect',
-        href: 'https://rsms.me/',
-      },
-      {
         rel: 'stylesheet',
-        href: 'https://rsms.me/inter/inter.css',
+        href: 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css',
       },
     ],
   }),
@@ -55,6 +50,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       suppressHydrationWarning
     >
       <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: theme init must run before first paint to avoid FOUC */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />
       </head>

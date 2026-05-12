@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <style>
+    .bg { fill: #18181b; }
+    .fg { stroke: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #ffffff; }
+      .fg { stroke: #18181b; }
+    }
+  </style>
+  <rect class="bg" width="100" height="100" rx="20" />
+  <polyline
+    class="fg"
+    points="15,55 32,55 41,40 53,75 62,25 71,55 85,55"
+    fill="none"
+    stroke-width="9"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

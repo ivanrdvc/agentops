@@ -7,15 +7,10 @@ import {
   SunIcon,
   UserCircleIcon,
 } from '@heroicons/react/16/solid'
-import {
-  BeakerIcon,
-  BoltIcon,
-  Cog6ToothIcon,
-  CubeTransparentIcon,
-  PlayCircleIcon,
-} from '@heroicons/react/20/solid'
+import { BeakerIcon, BoltIcon, Cog6ToothIcon, CubeTransparentIcon, PlayCircleIcon } from '@heroicons/react/20/solid'
 import { useRouterState } from '@tanstack/react-router'
-import { Avatar } from '#/components/avatar'
+import { Logo } from '#/components/logo'
+import { Avatar } from '#/components/ui/avatar'
 import {
   Dropdown,
   DropdownButton,
@@ -23,8 +18,8 @@ import {
   DropdownItem,
   DropdownLabel,
   DropdownMenu,
-} from '#/components/dropdown'
-import { Navbar, NavbarSection, NavbarSpacer } from '#/components/navbar'
+} from '#/components/ui/dropdown'
+import { Navbar, NavbarSection, NavbarSpacer } from '#/components/ui/navbar'
 import {
   Sidebar,
   SidebarBody,
@@ -35,21 +30,19 @@ import {
   SidebarLabel,
   SidebarSection,
   SidebarSpacer,
-} from '#/components/sidebar'
-import { SidebarLayout } from '#/components/sidebar-layout'
+} from '#/components/ui/sidebar'
+import { SidebarLayout } from '#/components/ui/sidebar-layout'
 import { useTheme } from '#/lib/theme'
 import { useUser } from '#/lib/user'
+
+const APP_VERSION = 'v0.1.0'
 
 const recentRuns = [
   { id: '1', name: 'code-review · #4821', url: '/runs/4821' },
   { id: '2', name: 'lead-qualifier · #182', url: '/runs/182' },
 ]
 
-function AccountDropdownMenu({
-  anchor,
-}: {
-  anchor: 'top start' | 'bottom end'
-}) {
+function AccountDropdownMenu({ anchor }: { anchor: 'top start' | 'bottom end' }) {
   const { mode, toggle } = useTheme()
   const ThemeIcon = mode === 'dark' ? MoonIcon : SunIcon
 
@@ -101,25 +94,21 @@ export function ApplicationLayout({ children }: { children: React.ReactNode }) {
           <SidebarHeader>
             <Dropdown>
               <DropdownButton as={SidebarItem}>
-                <Avatar initials="AO" className="bg-zinc-900 text-white" />
+                <Logo />
                 <SidebarLabel>agentops</SidebarLabel>
+                <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px]/4 font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                  {APP_VERSION}
+                </span>
                 <ChevronDownIcon />
               </DropdownButton>
-              <DropdownMenu
-                className="min-w-80 lg:min-w-64"
-                anchor="bottom start"
-              >
+              <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">
                 <DropdownItem href="/settings">
                   <Cog8ToothIcon />
                   <DropdownLabel>Settings</DropdownLabel>
                 </DropdownItem>
                 <DropdownDivider />
                 <DropdownItem href="/workspace">
-                  <Avatar
-                    slot="icon"
-                    initials="AO"
-                    className="bg-zinc-900 text-white"
-                  />
+                  <Logo slot="icon" />
                   <DropdownLabel>agentops</DropdownLabel>
                 </DropdownItem>
               </DropdownMenu>
@@ -169,11 +158,7 @@ export function ApplicationLayout({ children }: { children: React.ReactNode }) {
             <Dropdown>
               <DropdownButton as={SidebarItem}>
                 <span className="flex min-w-0 items-center gap-3">
-                  <Avatar
-                    initials={user.initials}
-                    className="size-10 bg-zinc-900 text-white"
-                    square
-                  />
+                  <Avatar initials={user.initials} className="size-10 bg-zinc-900 text-white" square />
                   <span className="min-w-0">
                     <span className="block truncate text-sm/5 font-medium text-zinc-950 dark:text-white">
                       {user.name}
