@@ -1,22 +1,315 @@
-// Azure Application Insights provider — placeholder.
-//
-// To implement: query the AI REST API
-//   POST https://api.applicationinsights.io/v1/apps/{appId}/query
-//   Authorization: Bearer <token>   (or x-api-key)
-// with KQL like:
-//   dependencies | where operation_Id == "<traceId>"
-//   | union (requests | where operation_Id == "<traceId>")
-// Map each row into our Span. customDimensions carries gen_ai_* keys.
-//
-// Register from index.ts only when both AI_APP_ID and AI_API_KEY are set.
+import { classifySpan, SESSION_ATTR_KEYS } from '#/lib/classify-span'
+import { propagateSessionInTrace, type Span, type SpanKind } from '#/lib/spans'
+import { aggregateSessions } from './openobserve'
+import type {
+  GetTraceOpts,
+  InventoryDiscoveryKind,
+  InventoryObservation,
+  ListSessionsOpts,
+  ListTracesOpts,
+  SessionFetch,
+  TelemetryProvider,
+  TraceFetch,
+  TraceSummary,
+} from './types'
 
-import type { TelemetryProvider } from './types'
+// SERVER spans land in `requests`; everything else in `dependencies`. OTel
+// attribute keys stay verbatim inside `customDimensions`, so classifySpan
+// reads them directly. Roll-up logic is shared with the OpenObserve provider
+// — AI rows are reshaped to OO column names before aggregateSessions runs.
 
 export interface AppInsightsConfig {
   appId: string
   apiKey: string
+  baseUrl?: string
 }
 
-export function createAppInsightsProvider(_cfg: AppInsightsConfig): TelemetryProvider {
-  throw new Error('App Insights provider not implemented yet')
+const DEFAULT_BASE = 'https://api.applicationinsights.io'
+const DEFAULT_LIST_LIMIT = 50
+const SESSION_SCAN_LIMIT = 5000
+const DEFAULT_TIMESPAN = 'P30D'
+
+const SESSION_ID_COALESCE = `coalesce(${SESSION_ATTR_KEYS.map(
+  (k) => `tostring(customDimensions["${k}"])`,
+).join(', ')})`
+
+interface AiQueryResponse {
+  tables?: Array<{
+    name: string
+    columns: { name: string; type: string }[]
+    rows: unknown[][]
+  }>
+  error?: { code: string; message: string }
+}
+
+export function createAppInsightsProvider(cfg: AppInsightsConfig): TelemetryProvider {
+  const base = cfg.baseUrl ?? DEFAULT_BASE
+  const queryUrl = `${base}/v1/apps/${encodeURIComponent(cfg.appId)}/query`
+
+  const kql = async (query: string, timespan = DEFAULT_TIMESPAN): Promise<Array<Record<string, unknown>>> => {
+    const resp = await fetch(queryUrl, {
+      method: 'POST',
+      headers: { 'x-api-key': cfg.apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, timespan }),
+    })
+    if (!resp.ok) {
+      throw new Error(`App Insights ${resp.status}: ${await resp.text()}`)
+    }
+    const data = (await resp.json()) as AiQueryResponse
+    if (data.error) throw new Error(`App Insights ${data.error.code}: ${data.error.message}`)
+    const table = data.tables?.find((t) => t.name === 'PrimaryResult') ?? data.tables?.[0]
+    if (!table) return []
+    return table.rows.map((row) => {
+      const out: Record<string, unknown> = {}
+      table.columns.forEach((c, i) => {
+        out[c.name] = row[i]
+      })
+      return out
+    })
+  }
+
+  return {
+    name: 'app-insights',
+    fingerprint: `${base}/${cfg.appId}`,
+
+    async getTrace(traceId, opts): Promise<TraceFetch> {
+      if (!isSafeId(traceId)) return { kind: 'not_found' }
+      const q = `
+        union dependencies, requests
+        | where operation_Id == "${traceId}"
+        | project itemType, id, operation_Id, operation_ParentId, name, timestamp, duration,
+                  cloud_RoleName, success, type, customDimensions
+        | top ${SESSION_SCAN_LIMIT} by timestamp asc
+      `
+      const rows = await kql(q, timespanFromOpts(opts))
+      if (rows.length === 0) return { kind: 'not_found' }
+      const spans = rows.map((r) => normalizeAiRow(r, traceId))
+      propagateSessionInTrace(spans)
+      return { kind: 'found', spans, truncated: rows.length >= SESSION_SCAN_LIMIT }
+    },
+
+    async listTraces(opts): Promise<TraceSummary[]> {
+      const limit = opts?.limit ?? DEFAULT_LIST_LIMIT
+      const q = `
+        union dependencies, requests
+        | extend gen_op = tostring(customDimensions["gen_ai.operation.name"])
+        | where isnotempty(gen_op)
+        | extend
+            in_tok = toint(customDimensions["gen_ai.usage.input_tokens"]),
+            out_tok = toint(customDimensions["gen_ai.usage.output_tokens"]),
+            sess = ${SESSION_ID_COALESCE},
+            end_ts = datetime_add('millisecond', toint(duration), timestamp)
+        | summarize
+            first_seen = min(timestamp),
+            last_seen  = max(end_ts),
+            span_count = count(),
+            total_tokens = sum(iff(gen_op == "chat", coalesce(in_tok, 0) + coalesce(out_tok, 0), 0)),
+            agent_names = make_set_if(name, name startswith "invoke_agent ", 5),
+            has_error   = countif(success == false) > 0,
+            session_id  = take_any(sess),
+            service_name = take_any(cloud_RoleName)
+          by operation_Id
+        | top ${limit} by first_seen desc
+      `
+      const rows = await kql(q, timespanFromOpts(opts))
+      return rows.map(rowToTraceSummary)
+    },
+
+    async listSessions(opts) {
+      const q = `
+        union dependencies, requests
+        | extend gen_op = tostring(customDimensions["gen_ai.operation.name"])
+        | where isnotempty(gen_op) or name startswith "invoke_agent "
+        | project
+            trace_id = operation_Id,
+            span_id = id,
+            reference_parent_span_id = operation_ParentId,
+            operation_name = name,
+            start_time_iso = timestamp,
+            duration_ms = duration,
+            gen_ai_operation_name = gen_op,
+            llm_usage_tokens_total = toint(customDimensions["gen_ai.usage.input_tokens"])
+                                   + toint(customDimensions["gen_ai.usage.output_tokens"]),
+            llm_usage_cost_total = todouble(customDimensions["llm.usage.cost_total"]),
+            span_status = iff(success == false, "ERROR", "OK"),
+            ag_ui_thread_id = ${SESSION_ID_COALESCE}
+        | top ${SESSION_SCAN_LIMIT} by start_time_iso desc
+      `
+      const rows = await kql(q, timespanFromOpts(opts))
+      const limit = opts?.limit ?? DEFAULT_LIST_LIMIT
+      const truncated = rows.length >= SESSION_SCAN_LIMIT
+      const ooShaped = rows.map(toOpenObserveShape)
+      return { sessions: aggregateSessions(ooShaped, limit), truncated }
+    },
+
+    async getSession(sessionId, opts): Promise<SessionFetch> {
+      if (!isSafeId(sessionId)) return { kind: 'not_found' }
+      const isHex = /^[a-f0-9]+$/i.test(sessionId)
+      const hexClause = isHex ? `or name matches regex "^invoke_agent\\\\s+.*\\\\(${sessionId}\\\\)"` : ''
+      const tracesQ = `
+        union dependencies, requests
+        | extend sess = ${SESSION_ID_COALESCE}
+        | where sess == "${sessionId}" ${hexClause}
+        | distinct operation_Id
+      `
+      const traceRows = await kql(tracesQ, timespanFromOpts(opts))
+      const traceIds = traceRows.map((r) => String(r.operation_Id)).filter(Boolean)
+      if (traceIds.length === 0) return { kind: 'not_found' }
+
+      const idList = traceIds.map((id) => `"${id}"`).join(',')
+      const spansQ = `
+        union dependencies, requests
+        | where operation_Id in (${idList})
+        | project itemType, id, operation_Id, operation_ParentId, name, timestamp, duration,
+                  cloud_RoleName, success, type, customDimensions
+      `
+      const spanRows = await kql(spansQ, timespanFromOpts(opts))
+      const spans = spanRows.map((r) => normalizeAiRow(r, String(r.operation_Id ?? '')))
+
+      const byTrace = new Map<string, Span[]>()
+      for (const s of spans) {
+        const arr = byTrace.get(s.traceId) ?? []
+        arr.push(s)
+        byTrace.set(s.traceId, arr)
+      }
+      for (const trSpans of byTrace.values()) propagateSessionInTrace(trSpans)
+
+      const source: 'attribute' | 'agent-instance' = spans.some((s) => s.sessionSource === 'attribute')
+        ? 'attribute'
+        : 'agent-instance'
+      return { kind: 'found', sessionId, source, traceIds, spans }
+    },
+
+    async discoverInventory(kind, opts): Promise<InventoryObservation[]> {
+      const prefix = kind === 'new_tool' ? 'execute_tool' : 'invoke_agent'
+      const q = `
+        union dependencies, requests
+        | where name startswith "${prefix} "
+        | summarize
+            first_seen = min(timestamp),
+            last_seen  = max(timestamp),
+            sample_trace_id = any(operation_Id)
+          by operation_name = name
+        | top 1000 by first_seen desc
+      `
+      const rows = await kql(q, timespanFromOpts(opts))
+      return rows.flatMap((r) => rowToInventoryObservation(kind, r))
+    },
+  }
+}
+
+// Refuse anything that would break out of a quoted KQL literal.
+function isSafeId(id: string): boolean {
+  return /^[A-Za-z0-9_-]+$/.test(id)
+}
+
+function parseDynamic(raw: unknown): unknown {
+  if (typeof raw !== 'string') return raw
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return undefined
+  }
+}
+
+function parseCustomDimensions(raw: unknown): Record<string, unknown> {
+  const v = parseDynamic(raw)
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+}
+
+const NS_PER_MS = 1_000_000
+
+function timeBounds(timestampIso: unknown, durationMs: unknown): { startMs: number; endMs: number } {
+  const startMs = typeof timestampIso === 'string' ? Date.parse(timestampIso) : 0
+  const dur = typeof durationMs === 'number' ? durationMs : Number(durationMs ?? 0)
+  return { startMs, endMs: startMs + (Number.isFinite(dur) ? dur : 0) }
+}
+
+function kindFromAi(row: Record<string, unknown>): SpanKind {
+  if (row.itemType === 'request') return 'server'
+  const t = typeof row.type === 'string' ? row.type.toLowerCase() : ''
+  if (t.includes('http')) return 'client'
+  return 'internal'
+}
+
+function normalizeAiRow(row: Record<string, unknown>, traceId: string): Span {
+  const cd = parseCustomDimensions(row.customDimensions)
+  const operationName = String(row.name ?? '?')
+  const { startMs, endMs } = timeBounds(row.timestamp, row.duration)
+  return {
+    id: String(row.id ?? ''),
+    traceId,
+    parentId: (row.operation_ParentId as string) || null,
+    service: String(row.cloud_RoleName ?? 'unknown'),
+    kind: kindFromAi(row),
+    name: operationName,
+    startMs,
+    endMs,
+    ...classifySpan(operationName, cd),
+  }
+}
+
+function toOpenObserveShape(row: Record<string, unknown>): Record<string, unknown> {
+  const start = typeof row.start_time_iso === 'string' ? Date.parse(row.start_time_iso) : 0
+  const durMs = typeof row.duration_ms === 'number' ? row.duration_ms : Number(row.duration_ms ?? 0)
+  return {
+    ...row,
+    start_time: start * NS_PER_MS,
+    end_time: (start + (Number.isFinite(durMs) ? durMs : 0)) * NS_PER_MS,
+  }
+}
+
+function rowToTraceSummary(row: Record<string, unknown>): TraceSummary {
+  const firstSeen = typeof row.first_seen === 'string' ? Date.parse(row.first_seen) : 0
+  const lastSeen = typeof row.last_seen === 'string' ? Date.parse(row.last_seen) : 0
+  const summary: TraceSummary = {
+    id: String(row.operation_Id ?? ''),
+    startedAtMs: firstSeen,
+    durationMs: Math.max(0, lastSeen - firstSeen),
+    spanCount: Number(row.span_count ?? 0),
+    hasError: Boolean(row.has_error),
+  }
+  const tokens = num(row.total_tokens)
+  if (tokens) summary.totalTokens = tokens
+  const agents = parseDynamic(row.agent_names)
+  if (Array.isArray(agents)) {
+    const first = agents.find((s): s is string => typeof s === 'string' && s.startsWith('invoke_agent '))
+    const m = first?.match(/^invoke_agent\s+([^(\s]+)/)
+    if (m) summary.agent = m[1]
+  }
+  if (typeof row.session_id === 'string' && row.session_id) summary.sessionId = row.session_id
+  if (typeof row.service_name === 'string' && row.service_name) summary.serviceName = row.service_name
+  return summary
+}
+
+function rowToInventoryObservation(kind: InventoryDiscoveryKind, row: Record<string, unknown>): InventoryObservation[] {
+  const operationName = String(row.operation_name ?? '')
+  const name =
+    kind === 'new_tool'
+      ? operationName.match(/^execute_tool\s+(\S+)/)?.[1]
+      : operationName.match(/^invoke_agent\s+([^(\s]+)/)?.[1]
+  if (!name) return []
+  const firstSeen = typeof row.first_seen === 'string' ? Date.parse(row.first_seen) : 0
+  const lastSeen = typeof row.last_seen === 'string' ? Date.parse(row.last_seen) : firstSeen
+  return [
+    {
+      kind: kind === 'new_tool' ? 'mcp_tool' : 'agent',
+      name,
+      namespace: '',
+      firstSeenMs: firstSeen,
+      lastSeenMs: lastSeen,
+      traceId: typeof row.sample_trace_id === 'string' ? row.sample_trace_id : undefined,
+    },
+  ]
+}
+
+function num(v: unknown): number | undefined {
+  if (v === null || v === undefined || v === '') return undefined
+  const n = Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
+function timespanFromOpts(opts: GetTraceOpts | ListTracesOpts | ListSessionsOpts | undefined): string {
+  if (!opts?.fromUs || !opts.toUs) return DEFAULT_TIMESPAN
+  return `${new Date(opts.fromUs / 1000).toISOString()}/${new Date(opts.toUs / 1000).toISOString()}`
 }

@@ -140,7 +140,7 @@ function TreeRow({ row, selected, onSelect }: TreeRowProps) {
 
         <div className="flex min-w-0 flex-1 flex-col leading-tight">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate font-medium text-rose-500 dark:text-rose-400">{span.service}</span>
+            <span className="truncate font-medium text-accent-600 dark:text-accent-400">{span.service}</span>
             <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-zinc-200 text-[9px] font-semibold uppercase text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
               {KIND_LETTER[span.kind]}
             </span>

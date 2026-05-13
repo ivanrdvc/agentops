@@ -13,12 +13,6 @@
 - Historic data across agent versions (compare runs over time)
 
 ## Polish
-- Establish a proper color palette. Tailwind config may be overriding `zinc`
-  (renders red-purple-ish), and current accents (indigo/violet/amber/emerald/
-  rose) are overloaded between "status meaning" and "directional/category".
-  Decide:
-    - the canonical neutral
-    - one accent per status (selected / pending / success / error)
-    - one accent for sub-agent boundary
-    - a separate non-status pair for directional metadata (e.g. token in/out)
-  Then sweep components to align.
+- Apply palette — see `docs/plans/palette.md`. Live preview at `/palette`.
+  Sweep list is in the doc (~6 files). Zinc's purple-magenta tint is stock
+  Tailwind v4 (hue 285°), not a config override — we lean into it.

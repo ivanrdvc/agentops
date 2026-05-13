@@ -1,8 +1,80 @@
 @import 'tailwindcss';
+@import 'streamdown/styles.css';
 @plugin '@tailwindcss/typography';
+@source '../node_modules/streamdown/dist/*.js';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif;
+
+  --color-accent-50: var(--color-violet-50);
+  --color-accent-100: var(--color-violet-100);
+  --color-accent-200: var(--color-violet-200);
+  --color-accent-300: var(--color-violet-300);
+  --color-accent-400: var(--color-violet-400);
+  --color-accent-500: var(--color-violet-500);
+  --color-accent-600: var(--color-violet-600);
+  --color-accent-700: var(--color-violet-700);
+  --color-accent-800: var(--color-violet-800);
+  --color-accent-900: var(--color-violet-900);
+  --color-accent-950: var(--color-violet-950);
+}
+
+[data-accent='indigo'] {
+  --color-accent-50: var(--color-indigo-50);
+  --color-accent-100: var(--color-indigo-100);
+  --color-accent-200: var(--color-indigo-200);
+  --color-accent-300: var(--color-indigo-300);
+  --color-accent-400: var(--color-indigo-400);
+  --color-accent-500: var(--color-indigo-500);
+  --color-accent-600: var(--color-indigo-600);
+  --color-accent-700: var(--color-indigo-700);
+  --color-accent-800: var(--color-indigo-800);
+  --color-accent-900: var(--color-indigo-900);
+  --color-accent-950: var(--color-indigo-950);
+}
+
+/* Streamdown's shadcn-style design tokens. Catalyst doesn't define these, so we
+   set a minimal palette tuned to our zinc-based theme. */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --border: oklch(0.3 0 0);
+  --input: oklch(0.3 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --radius: 0.5rem;
+}
+
+/* Tighten Streamdown's default vertical rhythm for the dense bubble layout. */
+.streamdown-tight :where(p, ul, ol, pre, blockquote, table):not(:first-child) {
+  margin-top: 0.5rem;
+}
+.streamdown-tight :where(p, ul, ol, pre, blockquote, table) {
+  margin-bottom: 0;
+}
+.streamdown-tight :where(li) > :where(p) {
+  margin: 0;
+}
+.streamdown-tight :where(ul, ol) {
+  padding-left: 1.25rem;
 }

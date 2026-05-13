@@ -23,6 +23,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@anthropic-ai/tokenizer": "^0.0.4",
     "@headlessui/react": "^2.2.10",
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/vite": "^4.1.18",
@@ -35,12 +36,15 @@
     "clsx": "^2.1.1",
     "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
+    "gpt-tokenizer": "^3.4.0",
     "lucide-react": "^0.545.0",
     "motion": "^12.38.0",
     "nitro": "npm:nitro-nightly@latest",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwindcss": "^4.1.18"
+    "streamdown": "^2.5.0",
+    "tailwindcss": "^4.1.18",
+    "use-stick-to-bottom": "^1.1.4"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.5",

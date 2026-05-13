@@ -86,9 +86,9 @@ export const SidebarItem = forwardRef(function SidebarItem(
 ) {
   const classes = clsx(
     // Base
-    'flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-base/6 font-medium text-zinc-950 sm:py-2 sm:text-sm/5',
+    'flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-base/6 font-medium text-zinc-950 transition-colors duration-150 sm:py-2 sm:text-sm/5',
     // Leading icon/icon-only
-    '*:data-[slot=icon]:size-6 *:data-[slot=icon]:shrink-0 *:data-[slot=icon]:fill-zinc-500 sm:*:data-[slot=icon]:size-5',
+    '*:data-[slot=icon]:size-6 *:data-[slot=icon]:shrink-0 *:data-[slot=icon]:fill-zinc-500 *:data-[slot=icon]:transition-colors *:data-[slot=icon]:duration-150 sm:*:data-[slot=icon]:size-5',
     // Trailing icon (down chevron or similar)
     '*:last:data-[slot=icon]:ml-auto *:last:data-[slot=icon]:size-5 sm:*:last:data-[slot=icon]:size-4',
     // Avatar
@@ -97,13 +97,13 @@ export const SidebarItem = forwardRef(function SidebarItem(
     'data-hover:bg-zinc-950/5 data-hover:*:data-[slot=icon]:fill-zinc-950',
     // Active
     'data-active:bg-zinc-950/5 data-active:*:data-[slot=icon]:fill-zinc-950',
-    // Current
-    'data-current:*:data-[slot=icon]:fill-zinc-950',
+    // Current (accent)
+    'data-current:bg-accent-500/8 data-current:text-accent-700 data-current:*:data-[slot=icon]:fill-accent-600',
     // Dark mode
     'dark:text-white dark:*:data-[slot=icon]:fill-zinc-400',
     'dark:data-hover:bg-white/5 dark:data-hover:*:data-[slot=icon]:fill-white',
     'dark:data-active:bg-white/5 dark:data-active:*:data-[slot=icon]:fill-white',
-    'dark:data-current:*:data-[slot=icon]:fill-white',
+    'dark:data-current:bg-accent-500/12 dark:data-current:text-accent-300 dark:data-current:*:data-[slot=icon]:fill-accent-400',
   )
 
   return (
@@ -111,7 +111,7 @@ export const SidebarItem = forwardRef(function SidebarItem(
       {current && (
         <motion.span
           layoutId="current-indicator"
-          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-zinc-950 dark:bg-white"
+          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-accent-500 dark:bg-accent-400"
         />
       )}
       {typeof props.href === 'string' ? (

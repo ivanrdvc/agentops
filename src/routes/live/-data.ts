@@ -1,4 +1,21 @@
+import { queryOptions } from '@tanstack/react-query'
+import { createServerFn } from '@tanstack/react-start'
+import { queryKeys, STALE_LIVE_MS } from '#/lib/query-keys'
 import type { Span } from '#/lib/spans'
+import { getTrace } from '#/lib/telemetry'
+
+const fetchTrace = createServerFn({ method: 'GET' })
+  .inputValidator((traceId: string) => traceId)
+  .handler(async ({ data }) => {
+    return await getTrace(data)
+  })
+
+export const traceQuery = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.traces.detail(id),
+    queryFn: () => fetchTrace({ data: id }),
+    staleTime: STALE_LIVE_MS,
+  })
 
 // Mirrors a real OpenObserve trace (trace_id 42427c58…): a ProverbsAgent
 // orchestrator with 2 turns; turn 1 invokes a sub-agent (Explorer) via the

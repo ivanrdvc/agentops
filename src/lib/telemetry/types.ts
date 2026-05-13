@@ -50,6 +50,17 @@ export interface ListSessionsOpts {
   limit?: number
 }
 
+export type InventoryDiscoveryKind = 'new_tool' | 'new_agent'
+
+export interface InventoryObservation {
+  kind: 'mcp_tool' | 'agent'
+  name: string
+  namespace: string
+  firstSeenMs: number
+  lastSeenMs: number
+  traceId?: string
+}
+
 export type SessionFetch =
   | { kind: 'found'; sessionId: string; source: 'attribute' | 'agent-instance'; traceIds: string[]; spans: Span[] }
   | { kind: 'not_found' }
@@ -73,6 +84,7 @@ export interface TelemetryProvider {
   // may be missing from the result.
   listSessions?(opts?: ListSessionsOpts): Promise<{ sessions: SessionSummary[]; truncated: boolean }>
   getSession?(sessionId: string, opts?: GetTraceOpts): Promise<SessionFetch>
+  discoverInventory?(kind: InventoryDiscoveryKind, opts?: GetTraceOpts): Promise<InventoryObservation[]>
 
   // getLogs?(filter, opts?): Promise<LogEntry[]>
   // getMetric?(name, range): Promise<MetricSeries>

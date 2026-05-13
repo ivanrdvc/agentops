@@ -241,9 +241,9 @@ function emitTool(span: Span, spans: Span[], events: ConversationEvent[], parent
   events.push(result)
 }
 
-type MessageRole = 'user' | 'assistant' | 'system'
-type ChatMessage = { role: MessageRole; parts: MessagePart[] }
-type MessagePart =
+export type MessageRole = 'user' | 'assistant' | 'system'
+export type ChatMessage = { role: MessageRole; parts: MessagePart[] }
+export type MessagePart =
   | { kind: 'text'; content: string }
   | { kind: 'tool_call'; id: string; name: string; arguments: JsonValue }
   | { kind: 'tool_call_response'; id: string; response: JsonValue }
@@ -257,7 +257,7 @@ type MessagePart =
 // `tool_result` event emitted from that span is the source of truth.
 // A tool-role message with text content would otherwise render as a
 // generic bubble detached from the tool card.
-function asMessages(v: JsonValue | undefined): ChatMessage[] {
+export function asMessages(v: JsonValue | undefined): ChatMessage[] {
   if (!Array.isArray(v)) return []
   const out: ChatMessage[] = []
   for (const item of v) {

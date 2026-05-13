@@ -1,6 +1,27 @@
 import { type JsonValue, parseJson } from './json'
 import type { Operation } from './spans'
 
+// Session-id attribute keys in priority order — first hit wins. Both dotted
+// and underscored forms are listed: OpenObserve flattens dots at ingest,
+// Application Insights keeps them, and SDKs emit either. Add a pair here
+// when a new SDK starts emitting one.
+export const SESSION_ATTR_KEYS = [
+  'ag_ui.thread_id',
+  'ag_ui_thread_id',
+  'session.id',
+  'session_id',
+  'gen_ai.conversation.id',
+  'gen_ai_conversation_id',
+  'langfuse.session.id',
+  'langfuse_session_id',
+  'openinference.session.id',
+  'openinference_session_id',
+] as const
+
+// Subset materialized as top-level columns by OpenObserve's ingest path.
+// SQL needs column names, so we can't query the rest cheaply there.
+export const SESSION_ID_KEYS = ['ag_ui_thread_id'] as const
+
 // GenAI-shaped fields extracted from a span's OTel attributes and span name.
 // Every ingest path (push endpoint, OpenObserve, App Insights, ...) hands an
 // attribute bag here. The rules — which key forms count, which fallbacks
@@ -19,6 +40,8 @@ export interface Classification {
   llmInput?: JsonValue
   llmOutput?: JsonValue
   toolResult?: JsonValue
+  cachedTokens?: number
+  toolDefinitions?: JsonValue
   sessionId?: string
   sessionSource?: 'attribute' | 'agent-instance'
 }
@@ -74,18 +97,7 @@ export function classifySpan(name: string, attrs: Record<string, unknown>): Clas
   //      span names — fallback for SDKs that don't emit a session attr.
   // The `sessionSource` field discloses which path produced the id so the
   // UI can label heuristics.
-  const sessionAttr = pickString(attrs, [
-    'session.id',
-    'session_id',
-    'gen_ai.conversation.id',
-    'gen_ai_conversation_id',
-    'langfuse.session.id',
-    'langfuse_session_id',
-    'openinference.session.id',
-    'openinference_session_id',
-    'ag_ui.thread_id',
-    'ag_ui_thread_id',
-  ])
+  const sessionAttr = pickString(attrs, SESSION_ATTR_KEYS)
   if (sessionAttr) {
     c.sessionId = sessionAttr
     c.sessionSource = 'attribute'
@@ -118,6 +130,20 @@ export function classifySpan(name: string, attrs: Record<string, unknown>): Clas
       pickString(attrs, ['gen_ai.output.messages', 'gen_ai_output_messages', 'llm_output', 'llm.output']),
     )
     if (output !== undefined) c.llmOutput = output
+
+    const cached = pickNumber(attrs, [
+      'gen_ai.usage.cache_read.input_tokens',
+      'gen_ai_usage_cache_read_input_tokens',
+      'gen_ai.usage.cache_read_input_tokens',
+      'gen_ai_usage_cache_read.input_tokens',
+      'llm_usage_cache_read_tokens',
+    ])
+    if (cached !== undefined) c.cachedTokens = cached
+
+    const toolDefs = parseJson(
+      pickString(attrs, ['gen_ai.tool.definitions', 'gen_ai_tool_definitions', 'llm_request_functions']),
+    )
+    if (toolDefs !== undefined) c.toolDefinitions = toolDefs
   }
 
   return c
@@ -163,7 +189,7 @@ export function extractAgentInstanceId(spanName: string): string | undefined {
   return m?.[1]
 }
 
-function pickString(attrs: Record<string, unknown>, keys: string[]): string | undefined {
+function pickString(attrs: Record<string, unknown>, keys: readonly string[]): string | undefined {
   for (const k of keys) {
     const v = attrs[k]
     if (typeof v === 'string' && v.length > 0) return v

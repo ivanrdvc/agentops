@@ -25,6 +25,8 @@ export interface Span {
   // Present on chat spans — what the LLM was sent and what it replied.
   llmInput?: JsonValue
   llmOutput?: JsonValue
+  cachedTokens?: number
+  toolDefinitions?: JsonValue
 
   // Present on execute_tool spans — pairing key and the tool's return value.
   toolCallId?: string
@@ -69,6 +71,12 @@ export const KIND_LETTER: Record<SpanKind, string> = {
   internal: 'i',
   producer: 'p',
   consumer: 'u',
+}
+
+export function spanHasError(span: Span): boolean {
+  const r = span.toolResult
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return false
+  return r.error === true || r.status === 'error'
 }
 
 export function subtreeAggregate(spans: Span[], rootId: string): { tokens: number; costUsd: number } {

@@ -21,12 +21,15 @@ export function Avatar({
   className,
   ...props
 }: AvatarProps & React.ComponentPropsWithoutRef<'span'>) {
+  const hasExplicitSize = typeof className === 'string' && /(?:^|\s)(?:size-|h-|w-|\[[^\]]*size|[a-z]+:\S*(?:size-|h-|w-))/.test(className)
+
   return (
     <span
       data-slot="avatar"
       {...props}
       className={clsx(
         className,
+        !hasExplicitSize && 'size-8',
         // Basic layout
         'inline-grid shrink-0 align-middle [--avatar-radius:20%] *:col-start-1 *:row-start-1',
         'outline -outline-offset-1 outline-black/10 dark:outline-white/10',

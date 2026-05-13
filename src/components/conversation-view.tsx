@@ -1,6 +1,11 @@
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/16/solid'
+import { ArrowDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom'
+import { CopyButton } from '#/components/copy-button'
+import { Markdown } from '#/components/markdown'
 import { buildConversation, type ConversationEvent } from '#/lib/conversation'
+import { formatTime } from '#/lib/format'
 import type { Span } from '#/lib/spans'
 
 interface ConversationViewProps {
@@ -63,7 +68,29 @@ export function ConversationView({ spans, onSelect }: ConversationViewProps) {
 
   const ctx: EventContext = { selectedKey, expanded, resultByCallId, childrenByParent, selectEvent, toggle }
 
-  return <div className="flex flex-col gap-3 p-4">{topLevel.map((event) => renderEvent(event, ctx))}</div>
+  return (
+    <StickToBottom className="relative h-full overflow-y-hidden" resize="smooth" initial="instant">
+      <StickToBottom.Content className="flex flex-col gap-3 py-2">
+        {topLevel.map((event) => renderEvent(event, ctx))}
+      </StickToBottom.Content>
+      <ScrollToBottomButton />
+    </StickToBottom>
+  )
+}
+
+function ScrollToBottomButton() {
+  const { isAtBottom, scrollToBottom } = useStickToBottomContext()
+  if (isAtBottom) return null
+  return (
+    <button
+      type="button"
+      aria-label="Jump to latest"
+      onClick={() => scrollToBottom()}
+      className="absolute bottom-4 left-1/2 inline-flex size-9 -translate-x-1/2 items-center justify-center rounded-full border border-zinc-950/10 bg-white text-zinc-700 shadow-md hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+    >
+      <ArrowDown className="size-4" />
+    </button>
+  )
 }
 
 function renderEvent(event: ConversationEvent, ctx: EventContext) {
@@ -120,23 +147,29 @@ function MessageBubble({ event }: MessageBubbleProps) {
 
   if (isUser) {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-zinc-100 px-3 py-2 text-xs text-zinc-950 dark:bg-white/10 dark:text-white">
-          <div className="whitespace-pre-wrap">{event.content}</div>
-          <div className="mt-1 text-right text-[10px] opacity-60">{formatTime(event.timestamp)}</div>
+      <div className="group flex justify-end">
+        <div className="relative max-w-[75%] rounded-2xl rounded-tr-sm bg-zinc-100 px-3 py-2 text-xs text-zinc-950 dark:bg-white/10 dark:text-white">
+          <Markdown>{event.content}</Markdown>
+          <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-60">
+            <span>{formatTime(event.timestamp)}</span>
+          </div>
+          <CopyButton
+            value={event.content}
+            className="absolute -top-2 -left-2 bg-white opacity-0 shadow-sm ring-1 ring-zinc-950/10 transition-opacity group-hover:opacity-100 dark:bg-zinc-900 dark:ring-white/10"
+          />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-[75%] px-2 py-1 text-xs">
+    <div className="group relative max-w-[85%] px-2 py-1 text-xs">
       {event.role !== 'assistant' && (
         <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           {event.role}
         </div>
       )}
-      <div className="whitespace-pre-wrap text-zinc-950 dark:text-white">{event.content}</div>
+      <Markdown>{event.content}</Markdown>
       <div className="mt-1 flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400">
         <span>{formatTime(event.timestamp)}</span>
         {hasTokens && (
@@ -146,6 +179,10 @@ function MessageBubble({ event }: MessageBubbleProps) {
           </>
         )}
       </div>
+      <CopyButton
+        value={event.content}
+        className="absolute top-0 right-0 bg-white opacity-0 shadow-sm ring-1 ring-zinc-950/10 transition-opacity group-hover:opacity-100 dark:bg-zinc-900 dark:ring-white/10"
+      />
     </div>
   )
 }
@@ -154,8 +191,8 @@ function TokenBadge({ input, output }: { input?: number; output?: number }) {
   const total = (input ?? 0) + (output ?? 0)
   return (
     <span className="inline-flex items-center gap-1 font-mono">
-      {input !== undefined && <span className="text-indigo-600 dark:text-indigo-400">↑{input}</span>}
-      {output !== undefined && <span className="text-emerald-600 dark:text-emerald-400">↓{output}</span>}
+      {input !== undefined && <span className="text-zinc-500 dark:text-zinc-400">↑{input}</span>}
+      {output !== undefined && <span className="text-zinc-500 dark:text-zinc-400">↓{output}</span>}
       <span>({total} tokens)</span>
     </span>
   )
@@ -224,13 +261,18 @@ interface AgentCardProps {
 }
 
 function AgentCard({ event, nested, expanded, onToggle, selected, onSelect, ctx }: AgentCardProps) {
-  const hasChildren = nested.length > 0
+  // A sub-agent's input/result already capture what we care about. The chat
+  // messages from inside the sub-agent are duplicate noise from the parent's
+  // POV — only surface the *actions* the sub-agent took (tool calls + nested
+  // agent calls).
+  const actions = useMemo(() => nested.filter((e) => e.kind === 'tool_call' || e.kind === 'agent_call'), [nested])
+  const hasActions = actions.length > 0
 
   return (
     <div
       className={[
         'rounded-md border text-xs',
-        selected ? 'border-violet-500/60 dark:border-violet-400/60' : 'border-violet-500/30 dark:border-violet-400/30',
+        selected ? 'border-accent-500/60 dark:border-accent-400/60' : 'border-accent-500/30 dark:border-accent-400/30',
       ].join(' ')}
     >
       <button
@@ -239,15 +281,15 @@ function AgentCard({ event, nested, expanded, onToggle, selected, onSelect, ctx 
           onToggle()
           onSelect()
         }}
-        className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left hover:bg-violet-500/5 dark:hover:bg-violet-400/5"
+        className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left hover:bg-accent-500/5 dark:hover:bg-accent-400/5"
       >
-        <span className="rounded bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">
+        <span className="rounded bg-accent-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent-700 dark:text-accent-300">
           agent
         </span>
         <span className="font-medium text-zinc-950 dark:text-white">{event.agentName}</span>
-        {hasChildren && (
+        {hasActions && (
           <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-            ({nested.length} event{nested.length === 1 ? '' : 's'})
+            ({actions.length} action{actions.length === 1 ? '' : 's'})
           </span>
         )}
         <span className="ml-auto flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -257,15 +299,15 @@ function AgentCard({ event, nested, expanded, onToggle, selected, onSelect, ctx 
       </button>
 
       {expanded && (
-        <div className="space-y-2 border-t border-violet-500/15 px-3 py-2 dark:border-violet-400/15">
+        <div className="space-y-2 border-t border-accent-500/15 px-3 py-2 dark:border-accent-400/15">
           <KeyValueBlock label="Input" value={event.input} />
           <KeyValueBlock label="Output" value={event.result} />
-          {hasChildren && (
+          {hasActions && (
             <div className="space-y-2 border-t border-zinc-950/5 pt-2 dark:border-white/5">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Sub-agent activity
+                Actions
               </div>
-              <div className="flex flex-col gap-2">{nested.map((c) => renderEvent(c, ctx))}</div>
+              <div className="flex flex-col gap-2">{actions.map((c) => renderEvent(c, ctx))}</div>
             </div>
           )}
         </div>
@@ -280,26 +322,26 @@ function StatusPill({ status }: { status: 'pending' | 'completed' | 'failed' }) 
       ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
       : status === 'failed'
         ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
-        : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+        : 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
   const label = status === 'completed' ? '✓ Completed' : status === 'failed' ? '✗ Failed' : '⋯ Pending'
   return <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>{label}</span>
 }
 
 function KeyValueBlock({ label, value }: { label: string; value: unknown }) {
+  const formatted = formatValue(value)
   return (
-    <div>
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-        {label}
+    <div className="group/kv relative">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+          {label}
+        </div>
+        <CopyButton value={formatted} className="opacity-0 transition-opacity group-hover/kv:opacity-100" />
       </div>
-      <pre className="overflow-x-auto rounded bg-zinc-950/5 px-2 py-1.5 font-mono text-[11px] text-zinc-800 dark:bg-white/5 dark:text-zinc-200">
-        {formatValue(value)}
+      <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap break-words rounded bg-zinc-950/5 px-2 py-1.5 font-mono text-[11px] text-zinc-800 dark:bg-white/5 dark:text-zinc-200">
+        {formatted}
       </pre>
     </div>
   )
-}
-
-function formatTime(ms: number): string {
-  return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })
 }
 
 function formatValue(v: unknown): string {
