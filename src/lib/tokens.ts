@@ -1,6 +1,15 @@
+import { createServerFn } from '@tanstack/react-start'
 import { asMessages, type ChatMessage } from './conversation'
 import type { JsonValue } from './json'
 import type { Span } from './spans'
+
+type SpanInput = Pick<Span, 'model' | 'llmInput' | 'inputTokens' | 'outputTokens' | 'cachedTokens' | 'toolDefinitions'>
+
+export const fetchBreakdowns = createServerFn({ method: 'POST' })
+  .inputValidator((spans: SpanInput[]) => spans)
+  .handler(async ({ data }) => {
+    return Promise.all(data.map(breakdownChat))
+  })
 
 export interface ChatBreakdown {
   systemTokens: number
@@ -54,8 +63,9 @@ async function loadEncoder(family: Family): Promise<Encoder> {
       const mod = await import('gpt-tokenizer/encoding/cl100k_base')
       return (text: string) => mod.encode(text).length
     }
-    const mod = await import('@anthropic-ai/tokenizer')
-    return (text: string) => mod.countTokens(text)
+    // TODO: restore accurate Anthropic tokenizer — @anthropic-ai/tokenizer pulled tiktoken (WASM)
+    // which is incompatible with Vite 8 / rolldown client builds
+    return () => 0
   })()
   encoderCache.set(family, p)
   return p
@@ -94,7 +104,7 @@ function toolDefsCount(defs: JsonValue | undefined): number {
   return Array.isArray(defs) ? defs.length : 1
 }
 
-export async function breakdownChat(span: Span): Promise<ChatBreakdown> {
+export async function breakdownChat(span: SpanInput): Promise<ChatBreakdown> {
   const enc = await resolveEncoder(span.model)
   const messages = asMessages(span.llmInput)
   const systemMsgs = messages.filter((m) => m.role === 'system')

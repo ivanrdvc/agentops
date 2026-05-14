@@ -1,28 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { Span } from '#/lib/spans'
-import { breakdownChat, type ChatBreakdown, emptyBreakdown, sumBreakdowns } from '#/lib/tokens'
+import { type ChatBreakdown, emptyBreakdown, fetchBreakdowns, sumBreakdowns } from '#/lib/tokens'
 
 export function useBreakdowns(chatSpans: Span[]): { ready: boolean; total: ChatBreakdown } {
-  const [ready, setReady] = useState(false)
-  const [total, setTotal] = useState<ChatBreakdown>(() => emptyBreakdown())
+  const ids = chatSpans.map((s) => s.id).join(',')
 
-  useEffect(() => {
-    let cancelled = false
-    setReady(false)
-    Promise.all(chatSpans.map((s) => breakdownChat(s)))
-      .then((items) => {
-        if (cancelled) return
-        setTotal(sumBreakdowns(items))
-        setReady(true)
-      })
-      .catch(() => {
-        if (cancelled) return
-        setReady(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [chatSpans])
+  const { data, isPending } = useQuery({
+    queryKey: ['breakdowns', ids],
+    queryFn: () =>
+      fetchBreakdowns({
+        data: chatSpans.map(({ model, llmInput, inputTokens, outputTokens, cachedTokens, toolDefinitions }) => ({
+          model,
+          llmInput,
+          inputTokens,
+          outputTokens,
+          cachedTokens,
+          toolDefinitions,
+        })),
+      }),
+    enabled: chatSpans.length > 0,
+    staleTime: Infinity,
+  })
 
-  return { ready, total }
+  return {
+    ready: !isPending,
+    total: data ? sumBreakdowns(data) : emptyBreakdown(),
+  }
 }
