@@ -22,6 +22,32 @@ export const SESSION_ATTR_KEYS = [
 // SQL needs column names, so we can't query the rest cheaply there.
 export const SESSION_ID_KEYS = ['ag_ui_thread_id'] as const
 
+export const SESSION_TITLE_ATTR_KEYS = [
+  'ag_ui.thread.title',
+  'ag_ui_thread_title',
+  'session.title',
+  'session_title',
+  'thread.title',
+  'thread_title',
+  'gen_ai.conversation.title',
+  'gen_ai_conversation_title',
+] as const
+
+export const SESSION_TITLE_KEYS = ['ag_ui_thread_title'] as const
+
+export const USER_NAME_ATTR_KEYS = ['user.name', 'user_name', 'enduser.name', 'enduser_name'] as const
+
+export const USER_ID_ATTR_KEYS = [
+  'user.id',
+  'user_id',
+  'enduser.id',
+  'enduser_id',
+  'ag_ui.user.id',
+  'ag_ui_user_id',
+] as const
+
+export const HOST_ATTR_KEYS = ['host.name', 'host_name', 'service.name', 'service_name'] as const
+
 // GenAI-shaped fields extracted from a span's OTel attributes and span name.
 // Every ingest path (push endpoint, OpenObserve, App Insights, ...) hands an
 // attribute bag here. The rules — which key forms count, which fallbacks

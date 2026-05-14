@@ -1,11 +1,10 @@
-import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/16/solid'
-import { ArrowDown } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ArrowDownIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/16/solid'
+import { useCallback, useMemo, useState } from 'react'
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom'
 import { CopyButton } from '#/components/copy-button'
 import { Markdown } from '#/components/markdown'
 import { buildConversation, type ConversationEvent } from '#/lib/conversation'
-import { formatTime } from '#/lib/format'
+import { estimateTokens, formatTime, formatTokens, metricTone } from '#/lib/format'
 import type { Span } from '#/lib/spans'
 
 interface ConversationViewProps {
@@ -69,26 +68,34 @@ export function ConversationView({ spans, onSelect }: ConversationViewProps) {
   const ctx: EventContext = { selectedKey, expanded, resultByCallId, childrenByParent, selectEvent, toggle }
 
   return (
-    <StickToBottom className="relative h-full overflow-y-hidden" resize="smooth" initial="instant">
-      <StickToBottom.Content className="flex flex-col gap-3 py-2">
+    <StickToBottom className="relative h-full overflow-hidden" resize="smooth" initial="instant">
+      <StickToBottom.Content
+        scrollClassName="overflow-y-auto"
+        className="flex min-h-full flex-col gap-3 px-3 py-3 pb-16 sm:px-4"
+      >
         {topLevel.map((event) => renderEvent(event, ctx))}
       </StickToBottom.Content>
-      <ScrollToBottomButton />
+      <ConversationScrollButton />
     </StickToBottom>
   )
 }
 
-function ScrollToBottomButton() {
+function ConversationScrollButton() {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext()
+  const handleScrollToBottom = useCallback(() => {
+    scrollToBottom()
+  }, [scrollToBottom])
+
   if (isAtBottom) return null
+
   return (
     <button
       type="button"
       aria-label="Jump to latest"
-      onClick={() => scrollToBottom()}
-      className="absolute bottom-4 left-1/2 inline-flex size-9 -translate-x-1/2 items-center justify-center rounded-full border border-zinc-950/10 bg-white text-zinc-700 shadow-md hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+      onClick={handleScrollToBottom}
+      className="absolute bottom-4 left-[50%] z-10 inline-flex size-9 translate-x-[-50%] items-center justify-center rounded-full border border-zinc-950/10 bg-white text-zinc-700 shadow-md hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
     >
-      <ArrowDown className="size-4" />
+      <ArrowDownIcon className="size-4 fill-current" />
     </button>
   )
 }
@@ -150,20 +157,20 @@ function MessageBubble({ event }: MessageBubbleProps) {
       <div className="group flex justify-end">
         <div className="relative max-w-[75%] rounded-2xl rounded-tr-sm bg-zinc-100 px-3 py-2 text-xs text-zinc-950 dark:bg-white/10 dark:text-white">
           <Markdown>{event.content}</Markdown>
-          <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-60">
+          <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+            <CopyButton
+              value={event.content}
+              className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+            />
             <span>{formatTime(event.timestamp)}</span>
           </div>
-          <CopyButton
-            value={event.content}
-            className="absolute -top-2 -left-2 bg-white opacity-0 shadow-sm ring-1 ring-zinc-950/10 transition-opacity group-hover:opacity-100 dark:bg-zinc-900 dark:ring-white/10"
-          />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="group relative max-w-[85%] px-2 py-1 text-xs">
+    <div className="group w-fit max-w-[85%] px-2 py-1 text-xs">
       {event.role !== 'assistant' && (
         <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           {event.role}
@@ -178,21 +185,22 @@ function MessageBubble({ event }: MessageBubbleProps) {
             <TokenBadge input={event.inputTokens} output={event.outputTokens} />
           </>
         )}
+        <CopyButton
+          value={event.content}
+          className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+        />
       </div>
-      <CopyButton
-        value={event.content}
-        className="absolute top-0 right-0 bg-white opacity-0 shadow-sm ring-1 ring-zinc-950/10 transition-opacity group-hover:opacity-100 dark:bg-zinc-900 dark:ring-white/10"
-      />
     </div>
   )
 }
 
 function TokenBadge({ input, output }: { input?: number; output?: number }) {
   const total = (input ?? 0) + (output ?? 0)
+  const neutral = 'text-zinc-500 dark:text-zinc-400'
   return (
     <span className="inline-flex items-center gap-1 font-mono">
-      {input !== undefined && <span className="text-zinc-500 dark:text-zinc-400">↑{input}</span>}
-      {output !== undefined && <span className="text-zinc-500 dark:text-zinc-400">↓{output}</span>}
+      {input !== undefined && <span className={metricTone('tokens', input, neutral)}>↑{input}</span>}
+      {output !== undefined && <span className={metricTone('tokens', output, neutral)}>↓{output}</span>}
       <span>({total} tokens)</span>
     </span>
   )
@@ -209,6 +217,8 @@ interface ToolCardProps {
 
 function ToolCard({ call, result, expanded, onToggle, selected, onSelect }: ToolCardProps) {
   const status = !result ? 'pending' : result.success ? 'completed' : 'failed'
+  const argumentTokens = estimateTokens(formatValue(call.arguments))
+  const resultTokens = result ? estimateTokens(formatValue(result.result)) : undefined
 
   return (
     <div
@@ -226,9 +236,10 @@ function ToolCard({ call, result, expanded, onToggle, selected, onSelect }: Tool
         className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-white/5"
       >
         <span className="text-zinc-500 dark:text-zinc-400">⚒</span>
-        <span className="font-medium text-zinc-950 dark:text-white">{call.toolName}</span>
+        <span className="truncate font-medium text-zinc-950 dark:text-white">{call.toolName}</span>
         <StatusPill status={status} />
-        <span className="ml-auto flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+        <span className="ml-auto flex shrink-0 items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <ToolTokenBadge input={argumentTokens} output={resultTokens} />
           <span>{formatTime(call.timestamp)}</span>
           {expanded ? <ChevronDownIcon className="size-3" /> : <ChevronRightIcon className="size-3" />}
         </span>
@@ -250,6 +261,17 @@ function ToolCard({ call, result, expanded, onToggle, selected, onSelect }: Tool
   )
 }
 
+function ToolTokenBadge({ input, output }: { input: number; output?: number }) {
+  const neutral = 'text-zinc-500 dark:text-zinc-400'
+  return (
+    <span className="inline-flex items-center gap-1 font-mono" title="Estimated tool payload tokens">
+      <span className={metricTone('tokens', input, neutral)}>↑{formatTokens(input)}</span>
+      {output !== undefined && <span className={metricTone('tokens', output, neutral)}>↓{formatTokens(output)}</span>}
+      <span className="text-zinc-400 dark:text-zinc-500">est</span>
+    </span>
+  )
+}
+
 interface AgentCardProps {
   event: Extract<ConversationEvent, { kind: 'agent_call' }>
   nested: ConversationEvent[]
@@ -267,6 +289,8 @@ function AgentCard({ event, nested, expanded, onToggle, selected, onSelect, ctx 
   // agent calls).
   const actions = useMemo(() => nested.filter((e) => e.kind === 'tool_call' || e.kind === 'agent_call'), [nested])
   const hasActions = actions.length > 0
+  const inputTokens = estimateTokens(formatValue(event.input))
+  const outputTokens = estimateTokens(formatValue(event.result))
 
   return (
     <div
@@ -286,13 +310,14 @@ function AgentCard({ event, nested, expanded, onToggle, selected, onSelect, ctx 
         <span className="rounded bg-accent-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent-700 dark:text-accent-300">
           agent
         </span>
-        <span className="font-medium text-zinc-950 dark:text-white">{event.agentName}</span>
+        <span className="truncate font-medium text-zinc-950 dark:text-white">{event.agentName}</span>
         {hasActions && (
           <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
             ({actions.length} action{actions.length === 1 ? '' : 's'})
           </span>
         )}
-        <span className="ml-auto flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+        <span className="ml-auto flex shrink-0 items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <ToolTokenBadge input={inputTokens} output={outputTokens} />
           <span>{formatTime(event.timestamp)}</span>
           {expanded ? <ChevronDownIcon className="size-3" /> : <ChevronRightIcon className="size-3" />}
         </span>

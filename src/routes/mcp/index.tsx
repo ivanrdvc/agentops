@@ -1,4 +1,4 @@
-import { CubeTransparentIcon } from '@heroicons/react/20/solid'
+import { CubeTransparentIcon } from '@heroicons/react/24/outline'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { EmptyState } from '#/components/empty-state'
@@ -25,19 +25,15 @@ function McpPage() {
             partial
           </span>
         )}
-        {data && (
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">fetched {formatAgo(data.fetchedAt)}</span>
-        )}
+        {data && <span className="text-xs text-zinc-500 dark:text-zinc-400">fetched {formatAgo(data.fetchedAt)}</span>}
       </div>
 
       {servers.length === 0 ? (
-        <div className="overflow-hidden rounded-xl border border-zinc-950/5 bg-white dark:border-white/8 dark:bg-zinc-900">
-          <EmptyState
-            icon={CubeTransparentIcon}
-            title="No MCP servers"
-            description="No registry references were returned."
-          />
-        </div>
+        <EmptyState
+          icon={CubeTransparentIcon}
+          title="No MCP servers"
+          description="No registry references were returned."
+        />
       ) : (
         <Table dense>
           <TableHead>

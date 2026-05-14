@@ -1,4 +1,11 @@
-import { classifySpan, SESSION_ATTR_KEYS } from '#/lib/classify-span'
+import {
+  classifySpan,
+  HOST_ATTR_KEYS,
+  SESSION_ATTR_KEYS,
+  SESSION_TITLE_ATTR_KEYS,
+  USER_ID_ATTR_KEYS,
+  USER_NAME_ATTR_KEYS,
+} from '#/lib/classify-span'
 import { propagateSessionInTrace, type Span, type SpanKind } from '#/lib/spans'
 import { aggregateSessions } from './openobserve'
 import type {
@@ -29,9 +36,11 @@ const DEFAULT_LIST_LIMIT = 50
 const SESSION_SCAN_LIMIT = 5000
 const DEFAULT_TIMESPAN = 'P30D'
 
-const SESSION_ID_COALESCE = `coalesce(${SESSION_ATTR_KEYS.map(
-  (k) => `tostring(customDimensions["${k}"])`,
-).join(', ')})`
+const SESSION_ID_COALESCE = `coalesce(${SESSION_ATTR_KEYS.map((k) => `tostring(customDimensions["${k}"])`).join(', ')})`
+const SESSION_TITLE_COALESCE = `coalesce(${SESSION_TITLE_ATTR_KEYS.map((k) => `tostring(customDimensions["${k}"])`).join(', ')})`
+const USER_NAME_COALESCE = `coalesce(${USER_NAME_ATTR_KEYS.map((k) => `tostring(customDimensions["${k}"])`).join(', ')})`
+const USER_ID_COALESCE = `coalesce(${USER_ID_ATTR_KEYS.map((k) => `tostring(customDimensions["${k}"])`).join(', ')})`
+const HOST_COALESCE = `coalesce(${HOST_ATTR_KEYS.map((k) => `tostring(customDimensions["${k}"])`).join(', ')}, tostring(cloud_RoleName))`
 
 interface AiQueryResponse {
   tables?: Array<{
@@ -132,7 +141,11 @@ export function createAppInsightsProvider(cfg: AppInsightsConfig): TelemetryProv
                                    + toint(customDimensions["gen_ai.usage.output_tokens"]),
             llm_usage_cost_total = todouble(customDimensions["llm.usage.cost_total"]),
             span_status = iff(success == false, "ERROR", "OK"),
-            ag_ui_thread_id = ${SESSION_ID_COALESCE}
+            ag_ui_thread_id = ${SESSION_ID_COALESCE},
+            ag_ui_thread_title = ${SESSION_TITLE_COALESCE},
+            user_name = ${USER_NAME_COALESCE},
+            user_id = ${USER_ID_COALESCE},
+            host_name = ${HOST_COALESCE}
         | top ${SESSION_SCAN_LIMIT} by start_time_iso desc
       `
       const rows = await kql(q, timespanFromOpts(opts))

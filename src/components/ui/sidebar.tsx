@@ -97,13 +97,13 @@ export const SidebarItem = forwardRef(function SidebarItem(
     'data-hover:bg-zinc-950/5 data-hover:*:data-[slot=icon]:fill-zinc-950',
     // Active
     'data-active:bg-zinc-950/5 data-active:*:data-[slot=icon]:fill-zinc-950',
-    // Current (accent)
-    'data-current:bg-accent-500/8 data-current:text-accent-700 data-current:*:data-[slot=icon]:fill-accent-600',
+    // Current (neutral — stronger than hover, no brand accent)
+    'data-current:bg-zinc-950/10 data-current:text-zinc-950 data-current:*:data-[slot=icon]:fill-zinc-950',
     // Dark mode
     'dark:text-white dark:*:data-[slot=icon]:fill-zinc-400',
     'dark:data-hover:bg-white/5 dark:data-hover:*:data-[slot=icon]:fill-white',
     'dark:data-active:bg-white/5 dark:data-active:*:data-[slot=icon]:fill-white',
-    'dark:data-current:bg-accent-500/12 dark:data-current:text-accent-300 dark:data-current:*:data-[slot=icon]:fill-accent-400',
+    'dark:data-current:bg-white/10 dark:data-current:text-white dark:data-current:*:data-[slot=icon]:fill-white',
   )
 
   return (
@@ -111,7 +111,7 @@ export const SidebarItem = forwardRef(function SidebarItem(
       {current && (
         <motion.span
           layoutId="current-indicator"
-          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-accent-500 dark:bg-accent-400"
+          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-zinc-950 dark:bg-white"
         />
       )}
       {typeof props.href === 'string' ? (

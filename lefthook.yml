@@ -1,0 +1,7 @@
+pre-commit:
+  parallel: true
+  commands:
+    biome:
+      glob: '*.{js,jsx,ts,tsx,json,jsonc,css}'
+      run: ./node_modules/.bin/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true

@@ -11,10 +11,10 @@ import {
   BeakerIcon,
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
-  CubeTransparentIcon,
   HomeIcon,
   InboxIcon,
   PlayCircleIcon,
+  PuzzlePieceIcon,
 } from '@heroicons/react/20/solid'
 import { useQuery } from '@tanstack/react-query'
 import { useRouterState } from '@tanstack/react-router'
@@ -142,7 +142,7 @@ export function ApplicationLayout({ children }: { children: React.ReactNode }) {
                   <SidebarLabel>Live</SidebarLabel>
                 </SidebarItem>
                 <SidebarItem href="/mcp" current={is('/mcp')}>
-                  <CubeTransparentIcon />
+                  <PuzzlePieceIcon />
                   <SidebarLabel>MCP</SidebarLabel>
                 </SidebarItem>
                 <SidebarItem href="/evals" current={is('/evals')}>

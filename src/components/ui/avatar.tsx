@@ -21,7 +21,8 @@ export function Avatar({
   className,
   ...props
 }: AvatarProps & React.ComponentPropsWithoutRef<'span'>) {
-  const hasExplicitSize = typeof className === 'string' && /(?:^|\s)(?:size-|h-|w-|\[[^\]]*size|[a-z]+:\S*(?:size-|h-|w-))/.test(className)
+  const hasExplicitSize =
+    typeof className === 'string' && /(?:^|\s)(?:size-|h-|w-|\[[^\]]*size|[a-z]+:\S*(?:size-|h-|w-))/.test(className)
 
   return (
     <span

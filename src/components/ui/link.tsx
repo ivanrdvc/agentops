@@ -4,12 +4,16 @@ import type React from 'react'
 import { forwardRef } from 'react'
 
 export const Link = forwardRef(function Link(
-  { href, ...props }: { href: string } & Omit<React.ComponentPropsWithoutRef<'a'>, 'href'>,
+  {
+    href,
+    search,
+    ...props
+  }: { href: string; search?: Record<string, unknown> } & Omit<React.ComponentPropsWithoutRef<'a'>, 'href'>,
   ref: React.ForwardedRef<HTMLAnchorElement>,
 ) {
   return (
     <Headless.DataInteractive>
-      <RouterLink to={href} {...props} ref={ref} />
+      <RouterLink to={href} search={search} {...props} ref={ref} />
     </Headless.DataInteractive>
   )
 })

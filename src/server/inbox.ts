@@ -47,8 +47,8 @@ export async function snoozeInboxItem(id: number, until: Date): Promise<void> {
   await db.update(inboxItems).set({ snoozeUntil: until }).where(eq(inboxItems.id, id))
 }
 
-export async function listHomeInventory(): Promise<{ newTools: InventoryRow[]; newAgents: InventoryRow[] }> {
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+export async function listHomeInventory(days = 7): Promise<{ newTools: InventoryRow[]; newAgents: InventoryRow[] }> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
   const rows = await db
     .select()
     .from(inventory)

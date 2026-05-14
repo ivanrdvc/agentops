@@ -173,10 +173,9 @@ function BreakdownPanel({
         <span>Input breakdown</span>
         <span
           aria-hidden={ready}
-          className={[
-            'text-zinc-400 transition-opacity dark:text-zinc-500',
-            ready ? 'opacity-0' : 'opacity-100',
-          ].join(' ')}
+          className={['text-zinc-400 transition-opacity dark:text-zinc-500', ready ? 'opacity-0' : 'opacity-100'].join(
+            ' ',
+          )}
         >
           counting…
         </span>

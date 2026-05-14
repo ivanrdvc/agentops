@@ -22,7 +22,7 @@ export function StatusPills<T extends string>({ value, onChange, options }: Stat
           disabled={o.disabled}
           title={o.title}
           className={[
-            'rounded px-2.5 py-0.5 font-medium transition-colors',
+            'min-h-7 rounded px-2.5 py-1 font-medium transition-colors',
             o.disabled
               ? 'cursor-not-allowed text-zinc-400 dark:text-zinc-600'
               : value === o.value

@@ -1,4 +1,10 @@
-import { classifySpan, extractAgentInstanceId, extractAgentName, SESSION_ID_KEYS } from '#/lib/classify-span'
+import {
+  classifySpan,
+  extractAgentInstanceId,
+  extractAgentName,
+  SESSION_ID_KEYS,
+  SESSION_TITLE_KEYS,
+} from '#/lib/classify-span'
 import { propagateSessionInTrace, type Span, type SpanKind } from '#/lib/spans'
 import type {
   GetTraceOpts,
@@ -38,6 +44,8 @@ const SESSION_ID_MAX_AS =
 // `tryWithFallback` keys off one missing column name today — fine while
 // SESSION_ID_KEYS has one entry. Generalize when a second key lands.
 const SESSION_ID_FALLBACK_KEY = SESSION_ID_KEYS[0]
+const SESSION_TITLE_SELECT = SESSION_TITLE_KEYS.join(', ')
+const SESSION_TITLE_FALLBACK_KEY = SESSION_TITLE_KEYS[0]
 
 export function createOpenObserveProvider(cfg: OpenObserveConfig): TelemetryProvider {
   const search = async (sql: string, fromUs: number, toUs: number, size = DEFAULT_SIZE) => {
@@ -85,19 +93,21 @@ export function createOpenObserveProvider(cfg: OpenObserveConfig): TelemetryProv
       const limit = opts?.limit ?? DEFAULT_LIST_LIMIT
       // Pull every row needed to (a) resolve a trace's session id and (b)
       // roll up its tokens/cost. Group by trace in TS, then by session.
-      const buildSql = (withThread: boolean) => `
+      const buildSql = (withThread: boolean, withTitle: boolean) => `
         SELECT
           trace_id,
           span_id,
           reference_parent_span_id,
           operation_name,
           ${withThread ? `${SESSION_ID_SELECT},` : ''}
+          ${withTitle ? `${SESSION_TITLE_SELECT},` : ''}
           start_time,
           end_time,
           gen_ai_operation_name,
           llm_usage_tokens_total,
           llm_usage_cost_total,
-          span_status
+          span_status,
+          service_name
         FROM "${cfg.stream}"
         WHERE operation_name LIKE 'invoke_agent %'
            OR gen_ai_operation_name = 'chat'
@@ -106,9 +116,14 @@ export function createOpenObserveProvider(cfg: OpenObserveConfig): TelemetryProv
         LIMIT ${SESSION_SCAN_LIMIT}
       `
       const data = await tryWithFallback(
-        () => search(buildSql(true), fromUs, toUs, SESSION_SCAN_LIMIT),
-        () => search(buildSql(false), fromUs, toUs, SESSION_SCAN_LIMIT),
-        SESSION_ID_FALLBACK_KEY,
+        () => search(buildSql(true, true), fromUs, toUs, SESSION_SCAN_LIMIT),
+        () =>
+          tryWithFallback(
+            () => search(buildSql(true, false), fromUs, toUs, SESSION_SCAN_LIMIT),
+            () => search(buildSql(false, false), fromUs, toUs, SESSION_SCAN_LIMIT),
+            SESSION_ID_FALLBACK_KEY,
+          ),
+        [SESSION_TITLE_FALLBACK_KEY, SESSION_ID_FALLBACK_KEY],
       )
       const hits = (data.hits ?? []) as Array<Record<string, unknown>>
       const truncated = hits.length >= SESSION_SCAN_LIMIT
@@ -217,13 +232,14 @@ export function createOpenObserveProvider(cfg: OpenObserveConfig): TelemetryProv
 async function tryWithFallback<T>(
   primary: () => Promise<T>,
   fallback: () => Promise<T>,
-  missingField: string,
+  missingField: string | string[],
 ): Promise<T> {
   try {
     return await primary()
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (msg.includes('"code":20004') && msg.includes(`No field named ${missingField}`)) {
+    const fields = Array.isArray(missingField) ? missingField : [missingField]
+    if (msg.includes('"code":20004') && fields.some((field) => msg.includes(`No field named ${field}`))) {
       return await fallback()
     }
     throw e
@@ -341,6 +357,13 @@ export function aggregateSessions(hits: Array<Record<string, unknown>>, limit: n
       : 'agent-instance'
     const s: SessionSummary = {
       sessionId,
+      title: traces
+        .slice()
+        .sort((a, b) => b.endMs - a.endMs)
+        .find((t) => t.title)?.title,
+      userName: pickLatest(traces, (t) => t.userName),
+      userId: pickLatest(traces, (t) => t.userId),
+      host: pickLatest(traces, (t) => t.host),
       source,
       startedAtMs: Math.min(...traces.map((t) => t.startMs)),
       lastSeenMs: Math.max(...traces.map((t) => t.endMs)),
@@ -366,6 +389,10 @@ type TraceSession = {
   startMs: number
   endMs: number
   agents: Set<string>
+  title?: string
+  userName?: string
+  userId?: string
+  host?: string
   tokens: number
   cost: number
   hasError: boolean
@@ -403,6 +430,10 @@ function rollupTrace(rows: Array<Record<string, unknown>>): Omit<TraceSession, '
   let startMs = Number.POSITIVE_INFINITY
   let endMs = 0
   const agents = new Set<string>()
+  let title: string | undefined
+  let userName: string | undefined
+  let userId: string | undefined
+  let host: string | undefined
   let tokens = 0
   let cost = 0
   let hasError = false
@@ -415,6 +446,10 @@ function rollupTrace(rows: Array<Record<string, unknown>>): Omit<TraceSession, '
       const agent = extractAgentName(h.operation_name)
       if (agent) agents.add(agent)
     }
+    if (!title) title = pickTitle(h)
+    if (!userName) userName = pickString(h, ['user_name'])
+    if (!userId) userId = pickString(h, ['user_id'])
+    if (!host) host = pickString(h, ['host_name', 'service_name'])
     if (h.gen_ai_operation_name === 'chat') {
       const t = num(h.llm_usage_tokens_total)
       if (t) tokens += t
@@ -427,10 +462,38 @@ function rollupTrace(rows: Array<Record<string, unknown>>): Omit<TraceSession, '
     startMs: startMs === Number.POSITIVE_INFINITY ? 0 : startMs,
     endMs,
     agents,
+    title,
+    userName,
+    userId,
+    host,
     tokens,
     cost,
     hasError,
   }
+}
+
+function pickLatest(traces: TraceSession[], pick: (trace: TraceSession) => string | undefined): string | undefined {
+  return traces
+    .slice()
+    .sort((a, b) => b.endMs - a.endMs)
+    .map(pick)
+    .find((v): v is string => typeof v === 'string' && v.length > 0)
+}
+
+function pickTitle(row: Record<string, unknown>): string | undefined {
+  for (const key of SESSION_TITLE_KEYS) {
+    const v = row[key]
+    if (typeof v === 'string' && v.trim()) return v.trim()
+  }
+  return undefined
+}
+
+function pickString(row: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const v = row[key]
+    if (typeof v === 'string' && v.trim()) return v.trim()
+  }
+  return undefined
 }
 
 function kindFromNumber(raw: unknown): SpanKind {

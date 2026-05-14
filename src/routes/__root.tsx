@@ -46,7 +46,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      data-accent="violet"
+      data-accent="cursor"
       className="text-zinc-950 antialiased lg:bg-zinc-100 dark:bg-zinc-900 dark:text-white dark:lg:bg-zinc-950"
       suppressHydrationWarning
     >

@@ -8,25 +8,34 @@ import { TreeView } from '#/components/tree-view'
 import { TurnsView } from '#/components/turns-view'
 import { Link } from '#/components/ui/link'
 import type { Span } from '#/lib/spans'
+import { parseTimeRangeDays, type TimeRangeDays } from '#/lib/time-range'
 import { sessionQuery } from './-data'
 
 export const Route = createFileRoute('/sessions/$sessionId')({
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(sessionQuery(params.sessionId)),
+  validateSearch: (search: Record<string, unknown>): SessionSearch => ({
+    days: parseTimeRangeDays(search.days),
+  }),
+  loaderDeps: ({ search }) => ({ days: search.days }),
+  loader: ({ context, params, deps }) => context.queryClient.ensureQueryData(sessionQuery(params.sessionId, deps.days)),
   component: SessionDetail,
 })
 
 type ViewMode = 'spans' | 'conversation'
+interface SessionSearch {
+  days: TimeRangeDays
+}
 
 function SessionDetail() {
   const { sessionId } = Route.useParams()
-  const { data } = useQuery(sessionQuery(sessionId))
+  const search = Route.useSearch()
+  const { data } = useQuery(sessionQuery(sessionId, search.days))
   const [view, setView] = useState<ViewMode>('conversation')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   if (!data) {
     return (
       <div className="flex h-full min-h-[60vh] flex-col">
-        <Header source={null} provider={undefined} fingerprint={undefined} />
+        <Header source={null} provider={undefined} fingerprint={undefined} days={search.days} />
         <div className="flex flex-1 items-center justify-center text-xs text-zinc-400 dark:text-zinc-600">
           Session not found. Check that traces with this session.id exist in the active provider.
         </div>
@@ -45,6 +54,7 @@ function SessionDetail() {
         view={view}
         onViewChange={setView}
         spans={spans}
+        days={search.days}
       />
 
       <div className="flex min-h-0 flex-1 flex-col border-t border-zinc-950/10 md:flex-row dark:border-white/10">
@@ -90,15 +100,17 @@ interface HeaderProps {
   view?: ViewMode
   onViewChange?: (v: ViewMode) => void
   spans?: Span[]
+  days?: TimeRangeDays
 }
 
-function Header({ source, provider, fingerprint, view, onViewChange, spans }: HeaderProps) {
+function Header({ source, provider, fingerprint, view, onViewChange, spans, days }: HeaderProps) {
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-3">
       <Link
         href="/sessions"
+        search={days && days !== 1 ? { days } : undefined}
         aria-label="Back to sessions"
-        className="-ml-1 inline-flex size-6 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white"
+        className="-ml-1 inline-flex size-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white"
       >
         <ChevronLeftIcon className="size-4 fill-current" />
       </Link>
@@ -117,11 +129,11 @@ function Header({ source, provider, fingerprint, view, onViewChange, spans }: He
           via {provider} · {fingerprint}
         </span>
       )}
-      {view && onViewChange && (
-        <div className="w-full sm:ml-auto sm:w-auto">
+      {view && onViewChange ? (
+        <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:items-center">
           <ViewToggle value={view} onChange={onViewChange} />
         </div>
-      )}
+      ) : null}
     </header>
   )
 }
@@ -139,7 +151,7 @@ function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (v: ViewMo
           type="button"
           onClick={() => onChange(o.v)}
           className={[
-            'flex-1 rounded px-2.5 py-0.5 font-medium transition-colors sm:flex-none',
+            'min-h-7 flex-1 rounded px-2.5 py-1 font-medium transition-colors sm:flex-none',
             value === o.v
               ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
               : 'text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white',

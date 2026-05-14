@@ -3,6 +3,7 @@ import type { Span } from '#/lib/spans'
 import { createAppInsightsProvider } from './app-insights'
 import { createOpenObserveProvider } from './openobserve'
 import type {
+  GetTraceOpts,
   InventoryDiscoveryKind,
   InventoryObservation,
   ListSessionsOpts,
@@ -147,7 +148,10 @@ export async function listRecentSessions(opts?: ListSessionsOpts): Promise<{
   return { sessions: r.sessions, truncated: r.truncated, provider: p.name, fingerprint: p.fingerprint }
 }
 
-export async function getSession(sessionId: string): Promise<{
+export async function getSession(
+  sessionId: string,
+  opts?: GetTraceOpts,
+): Promise<{
   sessionId: string
   source: 'attribute' | 'agent-instance'
   spans: Span[]
@@ -157,7 +161,7 @@ export async function getSession(sessionId: string): Promise<{
 } | null> {
   const p = getActiveProvider()
   if (!p.getSession) return null
-  const r = await p.getSession(sessionId)
+  const r = await p.getSession(sessionId, opts)
   if (r.kind !== 'found') return null
   return {
     sessionId: r.sessionId,

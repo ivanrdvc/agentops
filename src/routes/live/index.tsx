@@ -1,4 +1,4 @@
-import { PlayCircleIcon } from '@heroicons/react/20/solid'
+import { PlayCircleIcon } from '@heroicons/react/24/outline'
 import { createFileRoute } from '@tanstack/react-router'
 import { EmptyState } from '#/components/empty-state'
 
@@ -17,9 +17,9 @@ function LiveLanding() {
         title="Nothing live yet"
         description={
           <>
-            This page is for runs that are still in motion — live-tailing spans as they flush from the
-            exporter, streaming events from a running app, or initiating a run against a configured agent.
-            Finished runs live under{' '}
+            This page is for runs that are still in motion — live-tailing spans as they flush from the exporter,
+            streaming events from a running app, or initiating a run against a configured agent. Finished runs live
+            under{' '}
             <a href="/sessions" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
               Sessions
             </a>

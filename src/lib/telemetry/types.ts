@@ -34,6 +34,10 @@ export interface TraceSummary {
 // hex heuristic (used when no attribute is present).
 export interface SessionSummary {
   sessionId: string
+  title?: string
+  userName?: string
+  userId?: string
+  host?: string
   source: 'attribute' | 'agent-instance'
   startedAtMs: number
   lastSeenMs: number

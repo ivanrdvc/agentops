@@ -14,6 +14,37 @@ export function formatCost(usd: number): string {
   return `$${usd.toFixed(4)}`
 }
 
+export type MetricKind = 'cost' | 'tokens'
+
+export function metricTone(
+  kind: MetricKind,
+  value: number | undefined,
+  normal = 'text-zinc-950 dark:text-white',
+): string {
+  if (!value) return 'text-zinc-500 dark:text-zinc-400'
+  if (kind === 'cost') {
+    if (value >= 1) return 'text-rose-700 dark:text-rose-300'
+    if (value >= 0.1) return 'text-amber-700 dark:text-amber-300'
+  }
+  if (kind === 'tokens') {
+    if (value >= 100_000) return 'text-rose-700 dark:text-rose-300'
+    if (value >= 32_000) return 'text-amber-700 dark:text-amber-300'
+  }
+  return normal
+}
+
+export function formatTokens(tokens: number | undefined): string {
+  if (!tokens) return '—'
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`
+  if (tokens >= 10_000) return `${Math.round(tokens / 1000)}k`
+  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`
+  return tokens.toLocaleString()
+}
+
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4)
+}
+
 export function truncateId(id: string): string {
   return id.length > 12 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id
 }

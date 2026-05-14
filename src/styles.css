@@ -8,6 +8,32 @@
 @theme {
   --font-sans: 'Pretendard Variable', Pretendard, ui-sans-serif, system-ui, sans-serif;
 
+  --color-accent-50: #fbf6fb;
+  --color-accent-100: #f6e9f6;
+  --color-accent-200: #eed4ee;
+  --color-accent-300: #e5bce5;
+  --color-accent-400: #d898d8;
+  --color-accent-500: #ca78ca;
+  --color-accent-600: #b75db7;
+  --color-accent-700: #974797;
+  --color-accent-800: #7c3e7c;
+  --color-accent-900: #663866;
+  --color-accent-950: #3f213f;
+
+  --color-accent-warm-50: #fff9ed;
+  --color-accent-warm-100: #fff0cf;
+  --color-accent-warm-200: #ffe2a3;
+  --color-accent-warm-300: #f8d27d;
+  --color-accent-warm-400: #f0c870;
+  --color-accent-warm-500: #e0a848;
+  --color-accent-warm-600: #c8842f;
+  --color-accent-warm-700: #a66326;
+  --color-accent-warm-800: #86502a;
+  --color-accent-warm-900: #704427;
+  --color-accent-warm-950: #402311;
+}
+
+[data-accent='violet'] {
   --color-accent-50: var(--color-violet-50);
   --color-accent-100: var(--color-violet-100);
   --color-accent-200: var(--color-violet-200);
@@ -51,7 +77,13 @@
   --radius: 0.5rem;
 }
 
+/* Native form controls, scrollbars, and UA surfaces follow the active theme. */
+.light {
+  color-scheme: light;
+}
+
 .dark {
+  color-scheme: dark;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

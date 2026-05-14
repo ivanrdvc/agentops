@@ -1,7 +1,9 @@
 export const queryKeys = {
   sessions: {
     all: () => ['sessions'] as const,
+    window: (days: number) => ['sessions', { days }] as const,
     detail: (id: string) => ['sessions', id] as const,
+    detailWindow: (id: string, days: number) => ['sessions', id, { days }] as const,
   },
   traces: {
     all: () => ['traces'] as const,
@@ -13,6 +15,7 @@ export const queryKeys = {
   },
   home: {
     all: () => ['home'] as const,
+    window: (days: number) => ['home', { days }] as const,
   },
   mcp: {
     all: () => ['mcp'] as const,

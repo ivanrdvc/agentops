@@ -42,23 +42,35 @@ export function TableBody(props: React.ComponentPropsWithoutRef<'tbody'>) {
   return <tbody {...props} />
 }
 
-const TableRowContext = createContext<{ href?: string; target?: string; title?: string }>({
+const TableRowContext = createContext<{
+  href?: string
+  search?: Record<string, unknown>
+  target?: string
+  title?: string
+}>({
   href: undefined,
+  search: undefined,
   target: undefined,
   title: undefined,
 })
 
 export function TableRow({
   href,
+  search,
   target,
   title,
   className,
   ...props
-}: { href?: string; target?: string; title?: string } & React.ComponentPropsWithoutRef<'tr'>) {
+}: {
+  href?: string
+  search?: Record<string, unknown>
+  target?: string
+  title?: string
+} & React.ComponentPropsWithoutRef<'tr'>) {
   const { striped } = useContext(TableContext)
 
   return (
-    <TableRowContext.Provider value={{ href, target, title } as React.ContextType<typeof TableRowContext>}>
+    <TableRowContext.Provider value={{ href, search, target, title } as React.ContextType<typeof TableRowContext>}>
       <tr
         {...props}
         className={clsx(
@@ -93,7 +105,7 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
 
 export function TableCell({ className, children, ...props }: React.ComponentPropsWithoutRef<'td'>) {
   const { bleed, dense, grid, striped } = useContext(TableContext)
-  const { href, target, title } = useContext(TableRowContext)
+  const { href, search, target, title } = useContext(TableRowContext)
   const [cellRef, setCellRef] = useState<HTMLElement | null>(null)
 
   return (
@@ -113,6 +125,7 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
         <Link
           data-row-link
           href={href}
+          search={search}
           target={target}
           aria-label={title}
           tabIndex={cellRef?.previousElementSibling === null ? 0 : -1}
