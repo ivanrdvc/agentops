@@ -13,6 +13,7 @@
 - Historic data across agent versions (compare runs over time)
 
 ## Polish
+- Trace drawer is the primary session surface from the list; full session route stays Turns + Conversation without a separate Spans/Tree column.
 - Apply palette — see `docs/plans/palette.md`. Live preview at `/palette`.
   Sweep list is in the doc (~6 files). Zinc's purple-magenta tint is stock
   Tailwind v4 (hue 285°), not a config override — we lean into it.

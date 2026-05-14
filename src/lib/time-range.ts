@@ -1,7 +1,8 @@
 export const TIME_RANGE_DAYS = [1, 7, 14, 30] as const
 export type TimeRangeDays = (typeof TIME_RANGE_DAYS)[number]
+export const DEFAULT_TIME_RANGE_DAYS: TimeRangeDays = 7
 
-export function parseTimeRangeDays(value: unknown, fallback: TimeRangeDays = 1): TimeRangeDays {
+export function parseTimeRangeDays(value: unknown, fallback: TimeRangeDays = DEFAULT_TIME_RANGE_DAYS): TimeRangeDays {
   const days = typeof value === 'string' ? Number(value) : value
   return TIME_RANGE_DAYS.includes(days as TimeRangeDays) ? (days as TimeRangeDays) : fallback
 }

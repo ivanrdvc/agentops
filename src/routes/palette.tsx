@@ -1,4 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
+import { type AutoRefreshInterval, AutoRefreshSelect } from '#/components/auto-refresh-select'
+import { SearchInput } from '#/components/search-input'
+import { StatusPills } from '#/components/status-pills'
+import { TimeRangeSelect } from '#/components/time-range-select'
+import type { TimeRangeDays } from '#/lib/time-range'
 
 export const Route = createFileRoute('/palette')({
   component: PalettePreview,
@@ -18,7 +24,26 @@ const ROLES = [
   { name: 'sky', hex: '#0ea5e9', role: 'Info / live', note: 'in-progress, streaming.' },
 ] as const
 
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'ok', label: 'OK' },
+  { value: 'error', label: 'Error' },
+] as const
+type StatusFilter = (typeof STATUS_OPTIONS)[number]['value']
+
 function PalettePreview() {
+  const [query, setQuery] = useState('')
+  const [days, setDays] = useState<TimeRangeDays>(1)
+  const [status, setStatus] = useState<StatusFilter>('all')
+  const [refreshInterval, setRefreshInterval] = useState<AutoRefreshInterval>('off')
+  const [refreshLoading, setRefreshLoading] = useState(false)
+
+  const refreshNow = () => {
+    if (refreshLoading) return
+    setRefreshLoading(true)
+    window.setTimeout(() => setRefreshLoading(false), 700)
+  }
+
   return (
     <div className="flex flex-col gap-10">
       <header className="space-y-1">
@@ -29,6 +54,39 @@ function PalettePreview() {
           are neutral too — arrows carry direction.
         </p>
       </header>
+
+      <Block title="Controls — component candidates">
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+          Separate pieces to iterate before wiring them into Home, Sessions, or trace panels. The dark treatment follows
+          the screenshot; each control should stand alone because not every page needs the whole strip.
+        </p>
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          <ControlSpecimen title="Search input" note="Short by default; page context should explain what it searches.">
+            <SearchInput value={query} onChange={setQuery} placeholder="Search..." />
+          </ControlSpecimen>
+
+          <ControlSpecimen title="Time range" note="Closed state uses one label only; menu carries the longer copy.">
+            <TimeRangeSelect value={days} onChange={setDays} />
+          </ControlSpecimen>
+
+          <ControlSpecimen title="Auto-refresh" note="Split control: refresh now on the icon, cadence in the dropdown.">
+            <AutoRefreshSelect
+              value={refreshInterval}
+              onChange={setRefreshInterval}
+              onRefresh={refreshNow}
+              loading={refreshLoading}
+            />
+          </ControlSpecimen>
+
+          <ControlSpecimen
+            title="Status segmented"
+            note="Small filter group for status, view mode, provider, or theme."
+          >
+            <StatusPills value={status} onChange={setStatus} options={[...STATUS_OPTIONS]} />
+          </ControlSpecimen>
+        </div>
+      </Block>
 
       <Block title="Hue family">
         <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -215,6 +273,20 @@ function Example({ label, children }: { label: string; children: React.ReactNode
     <div className="space-y-1.5">
       <div className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</div>
       <div>{children}</div>
+    </div>
+  )
+}
+
+function ControlSpecimen({ title, note, children }: { title: string; note: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-zinc-950/10 bg-white p-3 dark:border-white/10 dark:bg-zinc-900">
+      <div className="mb-3">
+        <div className="text-xs font-medium text-zinc-950 dark:text-white">{title}</div>
+        <div className="mt-0.5 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">{note}</div>
+      </div>
+      <div className="dark flex min-h-14 items-center rounded-lg border border-white/10 bg-zinc-950 p-2 shadow-sm">
+        {children}
+      </div>
     </div>
   )
 }

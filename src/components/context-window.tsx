@@ -67,9 +67,10 @@ export function ContextWindow({ spans }: ContextWindowProps) {
         <Ring pct={pct} />
       </PopoverButton>
       <PopoverPanel
+        portal
         anchor={{ to: 'bottom end', gap: 6 }}
         transition
-        className="z-20 w-64 rounded-lg border border-zinc-950/10 bg-white text-xs shadow-lg ring-1 ring-black/5 outline-hidden transition data-closed:opacity-0 dark:border-white/10 dark:bg-zinc-900 dark:ring-white/10"
+        className="z-[100] w-64 rounded-lg border border-zinc-950/10 bg-white text-xs shadow-lg ring-1 ring-black/5 outline-hidden transition data-closed:opacity-0 dark:border-white/10 dark:bg-zinc-900 dark:ring-white/10"
       >
         <div className="border-b border-zinc-950/5 px-3 py-2 dark:border-white/10">
           <div className="flex items-baseline justify-between">

@@ -1,7 +1,16 @@
 import * as Headless from '@headlessui/react'
 import { ChevronDownIcon, ChevronRightIcon, XMarkIcon } from '@heroicons/react/16/solid'
+import { ArrowsPointingOutIcon } from '@heroicons/react/20/solid'
 import { useMemo, useState } from 'react'
+import { type AutoRefreshInterval, AutoRefreshSelect } from '#/components/auto-refresh-select'
+import { ContextWindow } from '#/components/context-window'
+import { ConversationView } from '#/components/conversation-view'
+import { TurnsView } from '#/components/turns-view'
+import { Link } from '#/components/ui/link'
 import { formatCost, type Span } from '#/lib/spans'
+import type { TimeRangeDays } from '#/lib/time-range'
+
+type DrawerView = 'trace' | 'conversation'
 
 interface TraceDrawerProps {
   open: boolean
@@ -9,11 +18,38 @@ interface TraceDrawerProps {
   spans: Span[]
   loading?: boolean
   title?: string
+  /** Builds in-app expand target: `/sessions/:id` with `view`, optional `span`, and `days`. */
+  expandSession?: { sessionId: string; days: TimeRangeDays }
+  autoRefresh?: AutoRefreshInterval
+  onAutoRefreshChange?: (value: AutoRefreshInterval) => void
+  onRefresh?: () => void
+  refreshing?: boolean
 }
 
-export function TraceDrawer({ open, onClose, spans, loading, title }: TraceDrawerProps) {
+export function TraceDrawer({
+  open,
+  onClose,
+  spans,
+  loading,
+  title,
+  expandSession,
+  autoRefresh,
+  onAutoRefreshChange,
+  onRefresh,
+  refreshing,
+}: TraceDrawerProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const selected = selectedId ? spans.find((s) => s.id === selectedId) : null
+  const [drawerView, setDrawerView] = useState<DrawerView>('trace')
+
+  const expandSearch = useMemo((): Record<string, unknown> | undefined => {
+    if (!expandSession) return undefined
+    const next: Record<string, unknown> = {
+      view: drawerView === 'trace' ? 'trace' : 'conversation',
+    }
+    if (expandSession.days !== 1) next.days = expandSession.days
+    if (drawerView === 'trace' && selectedId) next.span = selectedId
+    return next
+  }, [expandSession, drawerView, selectedId])
 
   return (
     <Headless.Dialog open={open} onClose={onClose}>
@@ -31,35 +67,91 @@ export function TraceDrawer({ open, onClose, spans, loading, title }: TraceDrawe
               <h2 className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">Trace</h2>
               {title && <span className="truncate font-mono text-xs text-zinc-500 dark:text-zinc-400">{title}</span>}
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close drawer"
-              className="inline-flex size-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white"
-            >
-              <XMarkIcon className="size-4 fill-current" />
-            </button>
+            <div className="flex items-center gap-1">
+              {expandSession && (
+                <Link
+                  href={`/sessions/${expandSession.sessionId}`}
+                  search={expandSearch}
+                  onClick={() => onClose()}
+                  aria-label="Expand to session view"
+                  title="Expand to session view"
+                  className="inline-flex size-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-500/80 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white"
+                >
+                  <ArrowsPointingOutIcon className="size-4 shrink-0 fill-current" aria-hidden />
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close drawer"
+                className="inline-flex size-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white"
+              >
+                <XMarkIcon className="size-4 fill-current" />
+              </button>
+            </div>
           </header>
 
-          <div className="flex min-h-0 flex-1">
-            <section className="w-1/3 min-w-0 shrink-0 overflow-auto border-r border-zinc-950/10 dark:border-white/10">
-              {loading && spans.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-xs text-zinc-400 dark:text-zinc-600">
-                  Loading trace…
-                </div>
-              ) : (
-                <TraceList spans={spans} selectedId={selectedId} onSelect={setSelectedId} />
-              )}
-            </section>
-            <section className="min-w-0 flex-1 overflow-auto">
-              {selected ? (
-                <DetailPanel span={selected} />
-              ) : (
-                <div className="flex h-full items-center justify-center text-xs text-zinc-400 dark:text-zinc-600">
-                  Select an item to see details
-                </div>
-              )}
-            </section>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-zinc-950/10 px-3 py-1.5 dark:border-white/10">
+            <nav className="-m-px flex gap-5" aria-label="Trace drawer view">
+              <button
+                type="button"
+                onClick={() => setDrawerView('trace')}
+                className={[
+                  '-mb-px border-b-2 pb-1.5 text-xs font-medium transition-colors',
+                  drawerView === 'trace'
+                    ? 'border-accent-500 text-zinc-950 dark:border-accent-400 dark:text-white'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200',
+                ].join(' ')}
+              >
+                Trace
+              </button>
+              <button
+                type="button"
+                onClick={() => setDrawerView('conversation')}
+                className={[
+                  '-mb-px border-b-2 pb-1.5 text-xs font-medium transition-colors',
+                  drawerView === 'conversation'
+                    ? 'border-accent-500 text-zinc-950 dark:border-accent-400 dark:text-white'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200',
+                ].join(' ')}
+              >
+                Conversation
+              </button>
+            </nav>
+            <div className="flex flex-wrap items-center gap-2">
+              {autoRefresh != null && onAutoRefreshChange != null && onRefresh != null ? (
+                <AutoRefreshSelect
+                  value={autoRefresh}
+                  onChange={onAutoRefreshChange}
+                  onRefresh={onRefresh}
+                  loading={refreshing}
+                />
+              ) : null}
+              {spans.length > 0 && <ContextWindow spans={spans} />}
+            </div>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col">
+            {drawerView === 'conversation' ? (
+              <section className="min-h-0 flex-1 overflow-hidden">
+                {loading && spans.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-xs text-zinc-400 dark:text-zinc-600">
+                    Loading…
+                  </div>
+                ) : (
+                  <ConversationView spans={spans} onSelect={setSelectedId} />
+                )}
+              </section>
+            ) : (
+              <div className="flex min-h-0 flex-1">
+                <TraceInspectLayout
+                  spans={spans}
+                  loading={!!loading}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                />
+              </div>
+            )}
           </div>
         </Headless.DialogPanel>
       </div>
@@ -350,6 +442,65 @@ function DetailPanel({ span }: { span: Span }) {
       {span.toolResult != null && <JsonBlock label="Result" value={span.toolResult} />}
       {span.llmInput != null && <JsonBlock label="LLM Input" value={span.llmInput} />}
       {span.llmOutput != null && <JsonBlock label="LLM Output" value={span.llmOutput} />}
+    </div>
+  )
+}
+
+export function TraceInspectLayout({
+  spans,
+  loading,
+  selectedId,
+  onSelect,
+}: {
+  spans: Span[]
+  loading?: boolean
+  selectedId: string | null
+  onSelect: (id: string) => void
+}) {
+  const selectedSpan = useMemo(
+    () => (selectedId ? spans.find((s) => s.id === selectedId) : undefined),
+    [spans, selectedId],
+  )
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+      <section className="h-64 w-full shrink-0 overflow-auto border-zinc-950/10 border-b md:h-auto md:w-1/3 md:border-r md:border-b-0 dark:border-white/10">
+        {loading && spans.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-xs text-zinc-400 dark:text-zinc-600">
+            Loading trace…
+          </div>
+        ) : (
+          <TraceList spans={spans} selectedId={selectedId} onSelect={onSelect} />
+        )}
+      </section>
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {loading && spans.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center text-xs text-zinc-400 dark:text-zinc-600">
+            Loading…
+          </div>
+        ) : (
+          <>
+            <div className="max-h-[min(42vh,440px)] shrink-0 overflow-auto">
+              <TurnsView
+                spans={spans}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                showTurnList={false}
+                variant="plain"
+              />
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto border-zinc-950/10 border-t dark:border-white/10">
+              {selectedSpan ? (
+                <DetailPanel span={selectedSpan} />
+              ) : (
+                <div className="flex min-h-[8rem] items-center justify-center px-4 text-center text-xs text-zinc-400 dark:text-zinc-600">
+                  Select a span in the tree for details
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </section>
     </div>
   )
 }

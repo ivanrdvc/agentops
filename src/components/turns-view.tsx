@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useBreakdowns } from '#/hooks/use-breakdowns'
-import { formatDuration, formatPercent, formatTime } from '#/lib/format'
+import { formatDuration, formatPercent } from '#/lib/format'
 import { findOrchestratorId, formatCost, type Span, spanHasError } from '#/lib/spans'
 import type { ChatBreakdown } from '#/lib/tokens'
 
@@ -29,9 +29,13 @@ interface TurnsViewProps {
   spans: Span[]
   selectedId: string | null
   onSelect: (id: string) => void
+  /** When false, only the token-usage table + breakdown (no per-turn pick list). */
+  showTurnList?: boolean
+  /** `plain` drops the card chrome for embedding in trace drawer / tight layouts. */
+  variant?: 'panel' | 'plain'
 }
 
-export function TurnsView({ spans, selectedId, onSelect }: TurnsViewProps) {
+export function TurnsView({ spans, selectedId, onSelect, showTurnList = true, variant = 'panel' }: TurnsViewProps) {
   const orchestratorId = findOrchestratorId(spans)
   const turns = useMemo(() => (orchestratorId ? extractTurns(spans, orchestratorId) : []), [spans, orchestratorId])
   if (!orchestratorId) {
@@ -45,24 +49,26 @@ export function TurnsView({ spans, selectedId, onSelect }: TurnsViewProps) {
   const agent = orchestrator?.agentName ?? orchestrator?.name ?? '—'
 
   return (
-    <div className="flex flex-col gap-3 p-3">
-      <TurnsSummary turns={turns} agent={agent} />
-      <ol className="flex flex-col gap-2">
-        {turns.map((turn, i) => (
-          <TurnCard
-            key={turn.llm.id}
-            index={i + 1}
-            turn={turn}
-            selected={turn.llm.id === selectedId}
-            onSelect={onSelect}
-          />
-        ))}
-      </ol>
+    <div className={variant === 'plain' ? 'flex flex-col gap-3 px-1 py-2 sm:px-2' : 'flex flex-col gap-3 p-3'}>
+      <TurnsSummary turns={turns} agent={agent} variant={variant} />
+      {showTurnList ? (
+        <ol className="flex flex-col gap-2">
+          {turns.map((turn, i) => (
+            <TurnCard
+              key={turn.llm.id}
+              index={i + 1}
+              turn={turn}
+              selected={turn.llm.id === selectedId}
+              onSelect={onSelect}
+            />
+          ))}
+        </ol>
+      ) : null}
     </div>
   )
 }
 
-function TurnsSummary({ turns, agent }: { turns: Turn[]; agent: string }) {
+function TurnsSummary({ turns, agent, variant }: { turns: Turn[]; agent: string; variant: 'panel' | 'plain' }) {
   let runningTokens = 0
   let totalIn = 0
   let totalOut = 0
@@ -84,7 +90,6 @@ function TurnsSummary({ turns, agent }: { turns: Turn[]; agent: string }) {
     totalDurationMs += durationMs
     return {
       index: i + 1,
-      startMs: t.llm.startMs,
       input,
       output,
       errs,
@@ -94,22 +99,26 @@ function TurnsSummary({ turns, agent }: { turns: Turn[]; agent: string }) {
     }
   })
 
+  const shell =
+    variant === 'plain'
+      ? 'overflow-hidden rounded-lg bg-zinc-950/[0.02] ring-1 ring-zinc-950/5 dark:bg-white/[0.02] dark:ring-white/10'
+      : 'overflow-hidden rounded-xl border border-zinc-950/5 bg-white dark:border-white/8 dark:bg-zinc-900'
+
   return (
-    <section className="overflow-hidden rounded-xl border border-zinc-950/5 bg-white dark:border-white/8 dark:bg-zinc-900">
-      <header className="flex items-center justify-between border-b border-zinc-950/5 px-3 py-1.5 text-[11px] font-medium text-zinc-500 dark:border-white/5 dark:text-zinc-400">
-        <span>
-          Token usage <span className="text-zinc-400 dark:text-zinc-500">· {agent}</span>
-        </span>
-        <span className="tabular-nums">
-          {turns.length} turn{turns.length === 1 ? '' : 's'}
-        </span>
+    <section className={shell}>
+      <header className="flex max-w-full flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-zinc-950/10 px-2.5 py-1.5 dark:border-white/10">
+        <div className="min-w-0">
+          <span className="truncate text-[11px] font-medium text-zinc-800 dark:text-zinc-200">{agent}</span>
+          <span className="ml-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+            · {turns.length} turn{turns.length === 1 ? '' : 's'}
+          </span>
+        </div>
       </header>
       <div className="overflow-x-auto">
         <table className="w-full text-[11px] tabular-nums">
           <thead className="text-zinc-500 dark:text-zinc-400">
             <tr className="text-right">
               <th className="px-2 py-1 text-left font-medium">#</th>
-              <th className="px-2 py-1 text-left font-medium">Time</th>
               <th className="px-2 py-1 font-medium">In</th>
               <th className="px-2 py-1 font-medium">Out</th>
               <th className="px-2 py-1 font-medium">Errs</th>
@@ -124,8 +133,7 @@ function TurnsSummary({ turns, agent }: { turns: Turn[]; agent: string }) {
                 key={r.index}
                 className="border-t border-zinc-950/5 text-right text-zinc-700 dark:border-white/5 dark:text-zinc-300"
               >
-                <td className="px-2 py-1 text-left text-zinc-500 dark:text-zinc-400">{r.index}</td>
-                <td className="px-2 py-1 text-left text-zinc-500 dark:text-zinc-400">{formatTime(r.startMs)}</td>
+                <td className="px-2 py-1 text-left tabular-nums text-zinc-500 dark:text-zinc-400">{r.index}</td>
                 <td className="px-2 py-1">{r.input ? r.input.toLocaleString() : '—'}</td>
                 <td className="px-2 py-1">{r.output ? r.output.toLocaleString() : '—'}</td>
                 <td className={`px-2 py-1 ${r.errs ? 'text-rose-600 dark:text-rose-400' : ''}`}>{r.errs || '—'}</td>
@@ -135,9 +143,7 @@ function TurnsSummary({ turns, agent }: { turns: Turn[]; agent: string }) {
               </tr>
             ))}
             <tr className="border-t border-zinc-950/10 text-right font-medium text-zinc-950 dark:border-white/10 dark:text-white">
-              <td className="px-2 py-1 text-left" colSpan={2}>
-                Total
-              </td>
+              <td className="px-2 py-1 text-left">Total</td>
               <td className="px-2 py-1">{totalIn.toLocaleString()}</td>
               <td className="px-2 py-1">{totalOut.toLocaleString()}</td>
               <td className={`px-2 py-1 ${totalErrs ? 'text-rose-600 dark:text-rose-400' : ''}`}>{totalErrs || '—'}</td>
@@ -168,7 +174,7 @@ function BreakdownPanel({
   const outputTokens = total.outputTokens || providerOut
   const grandTotal = inputTokens + outputTokens
   return (
-    <div className="border-t border-zinc-950/10 px-3 py-2 dark:border-white/10">
+    <div className="border-t border-zinc-950/10 px-2.5 py-2 dark:border-white/10">
       <div className="mb-1.5 flex items-center justify-between text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
         <span>Input breakdown</span>
         <span

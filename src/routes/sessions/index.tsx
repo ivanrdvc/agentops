@@ -2,6 +2,12 @@ import { ChatBubbleLeftRightIcon } from '@heroicons/react/20/solid'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
+import {
+  AUTO_REFRESH_MS,
+  type AutoRefreshInterval,
+  AutoRefreshSelect,
+  DEFAULT_AUTO_REFRESH_INTERVAL,
+} from '#/components/auto-refresh-select'
 import { EmptyState } from '#/components/empty-state'
 import { SearchInput } from '#/components/search-input'
 import { StatusPills } from '#/components/status-pills'
@@ -72,7 +78,15 @@ function userParts(s: SessionSummary): { primary: string; secondary?: string } {
 function SessionsList() {
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
-  const { data: loaderData } = useQuery(sessionsQuery(search.days))
+  const [autoRefresh, setAutoRefresh] = useState(DEFAULT_AUTO_REFRESH_INTERVAL)
+  const {
+    data: loaderData,
+    refetch,
+    isFetching,
+  } = useQuery({
+    ...sessionsQuery(search.days),
+    refetchInterval: AUTO_REFRESH_MS[autoRefresh],
+  })
   const sessions: SessionSummary[] = loaderData?.sessions ?? []
 
   const query = search.q ?? ''
@@ -135,10 +149,20 @@ function SessionsList() {
           </span>
         )}
         {sessions.length > 0 && (
-          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
-            <SearchInput value={query} onChange={setQuery} placeholder="Search agent or id…" />
-            <TimeRangeSelect value={search.days} onChange={setDays} />
-            <StatusPills value={status} onChange={setStatus} options={STATUS_OPTIONS} />
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:items-center">
+            <SearchInput value={query} onChange={setQuery} placeholder="Search..." />
+            <div className="flex flex-wrap items-center gap-2">
+              <TimeRangeSelect value={search.days} onChange={setDays} />
+              <StatusPills value={status} onChange={setStatus} options={STATUS_OPTIONS} />
+              <AutoRefreshSelect
+                value={autoRefresh}
+                onChange={setAutoRefresh}
+                onRefresh={() => {
+                  void refetch()
+                }}
+                loading={isFetching}
+              />
+            </div>
           </div>
         )}
       </header>
@@ -167,7 +191,6 @@ function SessionsList() {
         <Table dense>
           <TableHead>
             <TableRow>
-              <TableHeader className="w-12">Trace</TableHeader>
               <TableHeader>Session</TableHeader>
               <TableHeader className="w-40">User</TableHeader>
               <TableHeader className="w-28 text-right">Cost</TableHeader>
@@ -180,18 +203,13 @@ function SessionsList() {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-zinc-500 dark:text-zinc-400">
+                <TableCell colSpan={7} className="py-8 text-center text-zinc-500 dark:text-zinc-400">
                   No sessions match your filters.
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map((s) => (
-                <SessionRow
-                  key={s.sessionId}
-                  session={s}
-                  days={search.days}
-                  onOpenTrace={() => setTraceSessionId(s.sessionId)}
-                />
+                <SessionRow key={s.sessionId} session={s} onOpenSession={() => setTraceSessionId(s.sessionId)} />
               ))
             )}
           </TableBody>
@@ -214,21 +232,30 @@ function TraceDrawerForSession({
   days: TimeRangeDays
   onClose: () => void
 }) {
-  const { data, isLoading } = useQuery(sessionQuery(sessionId, days))
+  const [autoRefresh, setAutoRefresh] = useState<AutoRefreshInterval>(DEFAULT_AUTO_REFRESH_INTERVAL)
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    ...sessionQuery(sessionId, days),
+    refetchInterval: AUTO_REFRESH_MS[autoRefresh],
+  })
   return (
-    <TraceDrawer open onClose={onClose} spans={data?.spans ?? []} loading={isLoading} title={truncateId(sessionId)} />
+    <TraceDrawer
+      open
+      onClose={onClose}
+      spans={data?.spans ?? []}
+      loading={isLoading}
+      title={truncateId(sessionId)}
+      expandSession={{ sessionId, days }}
+      autoRefresh={autoRefresh}
+      onAutoRefreshChange={setAutoRefresh}
+      onRefresh={() => {
+        void refetch()
+      }}
+      refreshing={isFetching}
+    />
   )
 }
 
-function SessionRow({
-  session: s,
-  days,
-  onOpenTrace,
-}: {
-  session: SessionSummary
-  days: TimeRangeDays
-  onOpenTrace: () => void
-}) {
+function SessionRow({ session: s, onOpenSession }: { session: SessionSummary; onOpenSession: () => void }) {
   const label = `Open session ${s.sessionId}`
   const sessionTitle = s.title?.trim()
   const title = sessionTitle || truncateId(s.sessionId)
@@ -236,40 +263,56 @@ function SessionRow({
   const user = userParts(s)
 
   return (
-    <TableRow href={`/sessions/${s.sessionId}`} search={days === 1 ? undefined : { days }} title={label}>
+    <TableRow
+      className="cursor-pointer transition-colors duration-150 hover:bg-accent-500/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent-500 dark:hover:bg-accent-400/8"
+      tabIndex={0}
+      title={label}
+      onClick={() => onOpenSession()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpenSession()
+        }
+      }}
+    >
       <TableCell>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            onOpenTrace()
-          }}
-          className="relative z-10 inline-flex h-6 items-center rounded-md border border-zinc-950/10 bg-white px-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-white/5"
-        >
-          View
-        </button>
-      </TableCell>
-      <TableCell>
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="truncate font-medium text-zinc-950 dark:text-white">{title}</span>
-          <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-            <time dateTime={new Date(s.lastSeenMs).toISOString()}>{formatAgo(s.lastSeenMs)}</time>
-            {sessionTitle && (
-              <>
-                {' '}
-                · <span className="font-mono">{truncateId(s.sessionId)}</span>
-              </>
-            )}
+        <div className="flex min-w-0 items-center gap-x-1.5 text-sm">
+          <span className="min-w-0 flex-1 truncate font-medium text-zinc-950 dark:text-white">{title}</span>
+          <span className="text-zinc-400 dark:text-zinc-500" aria-hidden>
+            ·
           </span>
+          <time
+            dateTime={new Date(s.lastSeenMs).toISOString()}
+            className="shrink-0 whitespace-nowrap text-xs tabular-nums text-zinc-500 dark:text-zinc-400"
+            title={new Date(s.lastSeenMs).toLocaleString()}
+          >
+            {formatAgo(s.lastSeenMs)}
+          </time>
+          {sessionTitle ? (
+            <>
+              <span className="text-zinc-400 dark:text-zinc-500" aria-hidden>
+                ·
+              </span>
+              <span className="shrink-0 font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                {truncateId(s.sessionId)}
+              </span>
+            </>
+          ) : null}
         </div>
       </TableCell>
       <TableCell>
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="truncate text-zinc-950 dark:text-white">{user.primary}</span>
-          {user.secondary && (
-            <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">{user.secondary}</span>
-          )}
+        <div className="flex min-w-0 items-center gap-x-1.5 text-sm">
+          <span className="min-w-0 flex-1 truncate text-zinc-950 dark:text-white">{user.primary}</span>
+          {user.secondary ? (
+            <>
+              <span className="shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden>
+                ·
+              </span>
+              <span className="max-w-[min(12rem,40vw)] shrink-0 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                {user.secondary}
+              </span>
+            </>
+          ) : null}
         </div>
       </TableCell>
       <TableCell className={`text-right font-medium tabular-nums ${metricTone('cost', s.totalCostUsd)}`}>

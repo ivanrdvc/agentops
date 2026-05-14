@@ -1,8 +1,6 @@
 import {
   ArrowTopRightOnSquareIcon,
   BoltIcon,
-  CheckIcon,
-  ChevronDownIcon,
   CubeTransparentIcon,
   ExclamationTriangleIcon,
   InboxArrowDownIcon,
@@ -10,7 +8,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { EmptyState } from '#/components/empty-state'
-import { Dropdown, DropdownButton, DropdownItem, DropdownLabel, DropdownMenu } from '#/components/ui/dropdown'
+import { TimeRangeSelect } from '#/components/time-range-select'
 import { Link } from '#/components/ui/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '#/components/ui/table'
 import { formatAgo } from '#/lib/format'
@@ -19,11 +17,6 @@ import { HOME_RANGE_DAYS, type HomeRangeDays, homeQuery, parseHomeRangeDays } fr
 interface HomeSearch {
   days?: HomeRangeDays
 }
-
-const HOME_RANGE_OPTIONS: { days: HomeRangeDays; label: string }[] = HOME_RANGE_DAYS.map((days) => ({
-  days,
-  label: days === 1 ? 'Last 24h' : `Last ${days} days`,
-}))
 
 export const Route = createFileRoute('/')({
   validateSearch: (search: Record<string, unknown>): HomeSearch => ({
@@ -41,7 +34,6 @@ function Home() {
   const { data } = useQuery(homeQuery(days))
   const newTools = data?.newTools ?? []
   const newAgents = data?.newAgents ?? []
-  const selectedRange = HOME_RANGE_OPTIONS.find((option) => option.days === days) ?? HOME_RANGE_OPTIONS[1]
   const inventorySubtitle = days === 1 ? 'First seen in the last 24h' : `First seen in the last ${days} days`
 
   const setDays = (days: HomeRangeDays) => {
@@ -61,28 +53,7 @@ function Home() {
           </span>
         </div>
 
-        <Dropdown>
-          <DropdownButton
-            as="button"
-            className="inline-flex min-h-8 items-center gap-2 rounded-md border border-zinc-950/10 bg-white px-3.5 py-1.5 text-sm/6 font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-950/5 hover:text-zinc-950 focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-accent-500 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-white/5 dark:hover:text-white"
-          >
-            <span className="text-zinc-500 dark:text-zinc-400">Window</span>
-            <span>{selectedRange.label}</span>
-            <ChevronDownIcon className="-mr-1 size-4 fill-zinc-400 dark:fill-zinc-500" />
-          </DropdownButton>
-          <DropdownMenu anchor="bottom end" className="min-w-40">
-            {HOME_RANGE_OPTIONS.map((option) => (
-              <DropdownItem
-                key={option.days}
-                onClick={() => setDays(option.days)}
-                className={option.days === days ? 'text-accent-700 dark:text-accent-300' : undefined}
-              >
-                <CheckIcon className={option.days === days ? 'fill-accent-500 dark:fill-accent-400' : 'invisible'} />
-                <DropdownLabel>{option.label}</DropdownLabel>
-              </DropdownItem>
-            ))}
-          </DropdownMenu>
-        </Dropdown>
+        <TimeRangeSelect value={days} onChange={setDays} options={HOME_RANGE_DAYS} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
@@ -120,7 +91,7 @@ function Home() {
         <Section
           icon={BoltIcon}
           title="New agents"
-          subtitle={`Agent names observed for the first time, ${selectedRange.label.toLowerCase()}`}
+          subtitle={`Agent names observed for the first time, ${days === 1 ? 'last 24h' : `last ${days} days`}`}
         >
           {newAgents.length === 0 ? (
             <SectionEmpty label="No newly observed agents." />
